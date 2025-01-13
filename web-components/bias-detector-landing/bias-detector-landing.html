@@ -1,0 +1,25 @@
+<div class="container">
+    <h1>Bias Detection Analysis</h1>
+    <div class="form-group">
+        <label for="personality">Select Personality:</label>
+        <select id="personality" name="personality">
+            <option value="">Select a personality...</option>
+            $$personalityOptions
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="prompt">Analysis Prompt (Optional):</label>
+        <input type="text" id="prompt" placeholder="Enter specific analysis instructions...">
+    </div>
+    <div class="form-group">
+        <label for="topBiases">Number of Top Biases to Detect:</label>
+        <input type="number" id="topBiases" value="5" min="1" max="10">
+    </div>
+    <div class="form-group">
+        <label for="text">Text to Analyze:</label>
+        <textarea id="text" placeholder="Enter or paste your text here..."></textarea>
+    </div>
+    <div class="form-group">
+        <button id="analyzeBtn">Generate Bias Analysis</button>
+    </div>
+</div> 
