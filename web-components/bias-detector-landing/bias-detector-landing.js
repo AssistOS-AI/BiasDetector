@@ -1,5 +1,3 @@
-import css from './bias-detector-landing.css' assert { type: 'css' };
-import html from './bias-detector-landing.html';
 import {RoutingService} from "../../services/RoutingService";
 
 const personalityModule = require('assistos').loadModule('personality', {});
