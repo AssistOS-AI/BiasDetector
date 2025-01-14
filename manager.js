@@ -11,14 +11,6 @@ export class Manager {
         // this.services.set('VisualizationService', new VisualizationService());
     }
 
-    async initialize() {
-        // Initialize all services
-        for (const service of this.services.values()) {
-            await service.initialize();
-        }
-        console.log('BiasDetector initialized successfully');
-    }
-
     async navigateToLocation(location) {
         this.services.get('RoutingService').navigateToLocation(location, this.appName);
     }

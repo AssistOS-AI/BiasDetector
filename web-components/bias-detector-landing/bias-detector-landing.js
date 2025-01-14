@@ -1,5 +1,3 @@
-import {RoutingService} from "../../services/RoutingService";
-
 const personalityModule = require('assistos').loadModule('personality', {});
 
 export class BiasDetectorLanding {
