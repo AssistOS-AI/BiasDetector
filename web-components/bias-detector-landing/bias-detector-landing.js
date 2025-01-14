@@ -1,4 +1,4 @@
-// import {RoutingService} from "../../services/RoutingService";
+import {RoutingService} from "../../services/RoutingService.js";
 
 const personalityModule = require('assistos').loadModule('personality', {});
 
@@ -29,7 +29,7 @@ export class BiasDetectorLanding {
 
     setupEventListeners() {
         const analyzeBtn = this.element.querySelector('#analyzeBtn');
-        // analyzeBtn.addEventListener('click', () => this.handleAnalysis());
+        analyzeBtn.addEventListener('click', () => this.handleAnalysis());
     }
 
     async handleAnalysis() {
