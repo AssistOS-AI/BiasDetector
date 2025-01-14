@@ -32,10 +32,29 @@
         </div>
 
         <div class="form-group">
-            <label for="text">Text to Analyze</label>
-            <div class="input-wrapper">
-                <textarea id="text" name="text" required placeholder="Enter the text you want to analyze for bias..."></textarea>
-                <div class="input-info">Paste your text here for bias analysis</div>
+            <label>Source Selection</label>
+            <div class="source-toggle">
+                <div class="source-option active" data-source="text">Enter Text</div>
+                <div class="source-option" data-source="document">Choose Document</div>
+            </div>
+            
+            <div class="source-content active" id="textInput">
+                <div class="input-wrapper">
+                    <label for="text" class="sr-only">Text Content</label>
+                    <textarea id="text" name="text" required placeholder="Enter the text you want to analyze for bias..."></textarea>
+                    <div class="input-info">Paste your text here for bias analysis</div>
+                </div>
+            </div>
+
+            <div class="source-content" id="documentInput">
+                <div class="input-wrapper">
+                    <label for="document" class="sr-only">Select Document</label>
+                    <select id="document" name="document" required>
+                        <option value="">Select a document...</option>
+                        $$documentOptions
+                    </select>
+                    <div class="input-info">Choose an existing document to analyze</div>
+                </div>
             </div>
         </div>
 
