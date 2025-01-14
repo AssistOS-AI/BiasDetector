@@ -1,25 +1,49 @@
 <div class="container">
-    <h1>Bias Detection Analysis</h1>
-    <div class="form-group">
-        <label for="personality">Select Personality:</label>
-        <select id="personality" name="personality">
-            <option value="">Select a personality...</option>
-            $$personalityOptions
-        </select>
+    <div class="header">
+        <h1>Bias Detection Analysis</h1>
+        <p class="subtitle">Analyze text for potential biases and get detailed insights</p>
     </div>
-    <div class="form-group">
-        <label for="prompt">Analysis Prompt (Optional):</label>
-        <input type="text" id="prompt" placeholder="Enter specific analysis instructions...">
-    </div>
-    <div class="form-group">
-        <label for="topBiases">Number of Top Biases to Detect:</label>
-        <input type="number" id="topBiases" value="5" min="1" max="10">
-    </div>
-    <div class="form-group">
-        <label for="text">Text to Analyze:</label>
-        <textarea id="text" placeholder="Enter or paste your text here..."></textarea>
-    </div>
-    <div class="form-group">
-        <button id="analyzeBtn">Generate Bias Analysis</button>
+    
+    <div class="form-content">
+        <div class="form-group">
+            <label for="personality">Select Personality</label>
+            <div class="input-wrapper">
+                <select id="personality" name="personality" required>
+                    $$personalityOptions
+                </select>
+                <div class="input-info">Choose a personality to analyze the text</div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="prompt">Analysis Prompt</label>
+            <div class="input-wrapper">
+                <textarea id="prompt" name="prompt" required placeholder="Enter your analysis prompt here..."></textarea>
+                <div class="input-info">Provide context or specific aspects you want to analyze for bias</div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="text">Text to Analyze</label>
+            <div class="input-wrapper">
+                <textarea id="text" name="text" required placeholder="Enter the text you want to analyze for bias..."></textarea>
+                <div class="input-info">Paste your text here for bias analysis</div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="topBiases">Number of Top Biases</label>
+            <div class="input-wrapper">
+                <input type="number" id="topBiases" name="topBiases" value="3" min="1" max="10" required>
+                <div class="input-info">Select how many top biases to analyze (1-10)</div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button class="primary-button" id="analyzeButton">
+                <span class="button-icon">📊</span>
+                Analyze Text
+            </button>
+        </div>
     </div>
 </div> 
