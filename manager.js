@@ -7,8 +7,8 @@ export class Manager {
         this.appName = "BiasDetector";
         this.services = new Map();
         this.services.set('RoutingService', new RoutingService());
-        // this.services.set('BiasAnalysisService', new BiasAnalysisService());
-        // this.services.set('VisualizationService', new VisualizationService());
+        this.services.set('BiasAnalysisService', new BiasAnalysisService());
+        this.services.set('VisualizationService', new VisualizationService());
     }
 
     async navigateToLocation(location) {

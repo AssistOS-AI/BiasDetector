@@ -31,6 +31,14 @@
         {
             "serviceName": "RoutingService",
             "servicePath": "services/RoutingService.js"
+        },
+        {
+            "serviceName": "BiasAnalysisService",
+            "servicePath": "services/BiasAnalysisService.js"
+        },
+        {
+            "serviceName": "VisualizationService",
+            "servicePath": "services/VisualizationService.js"
         }
     ],
     "manager": {
