@@ -10,6 +10,21 @@
             "name": "bias-detector-landing",
             "presenterClassName": "BiasDetectorLanding",
             "type": "pages"
+        },
+        {
+            "name": "bias-detector-page",
+            "presenterClassName": "BiasDetectorPage",
+            "type": "pages"
+        },
+        {
+            "name": "bias-detector-visualization",
+            "presenterClassName": "BiasDetectorVisualization",
+            "type": "components"
+        },
+        {
+            "name": "bias-detector-results",
+            "presenterClassName": "BiasDetectorResults",
+            "type": "components"
         }
     ],
     "services": [
