@@ -1,4 +1,4 @@
-import {RoutingService} from "../../services/RoutingService";
+// import {RoutingService} from "../../services/RoutingService";
 
 const personalityModule = require('assistos').loadModule('personality', {});
 
