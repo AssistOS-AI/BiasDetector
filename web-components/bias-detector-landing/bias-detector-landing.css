@@ -122,19 +122,6 @@ textarea {
     font-size: 1.2rem;
 }
 
-/* Required field styling */
-select:required:invalid,
-input:required:invalid,
-textarea:required:invalid {
-    border-color: #e2e8f0;
-}
-
-select:required:valid,
-input:required:valid,
-textarea:required:valid {
-    border-color: #48bb78;
-}
-
 /* Responsive adjustments */
 @media (max-width: 768px) {
     :host {
