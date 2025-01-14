@@ -1,48 +1,40 @@
 {
-  "applicationName": "BiasDetector",
-  "version": "0.0.1",
-  "encodedSvgIcon": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzEiIGhlaWdodD0iNDEiIHZpZXdCb3g9IjAgMCAzMSA0MSIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTUuNSAwQzE3LjQzMyAwIDE5LjI1IDAuNzUgMjAuNSAyTDMwIDExLjVDMzEuMjUgMTIuNzUgMzIgMTQuNTY3IDMyIDE2LjVWMzZDMzIgMzguNzYxIDI5Ljc2MSA0MSAyNyA0MUg0QzEuMjM5IDQxIDAgMzguNzYxIDAgMzZWNUMwIDIuMjM5IDEuMjM5IDAgNCAwSDE1LjVaIiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg==",
-  "entryPointComponent": "bias-detector-landing",
-  "description": "Bias Detection and Analysis Tool",
-  "componentsDirPath": "web-components",
-  "components": [
-    {
-      "name": "bias-detector-landing",
-      "presenterClassName": "BiasDetectorLanding",
-      "type": "pages"
-    },
-    {
-      "name": "bias-detector-page",
-      "presenterClassName": "BiasDetectorPage",
-      "type": "pages"
-    },
-    {
-      "name": "bias-detector-visualization",
-      "presenterClassName": "BiasDetectorVisualization",
-      "type": "components"
-    },
-    {
-      "name": "bias-detector-results",
-      "presenterClassName": "BiasDetectorResults",
-      "type": "components"
+    "applicationName": "BiasDetector",
+    "version": "0.0.1",
+    "encodedSvgIcon": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzEiIGhlaWdodD0iNDEiIHZpZXdCb3g9IjAgMCAzMSA0MSIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTUuNSAwQzE3LjQzMyAwIDE5LjI1IDAuNzUgMjAuNSAyTDMwIDExLjVDMzEuMjUgMTIuNzUgMzIgMTQuNTY3IDMyIDE2LjVWMzZDMzIgMzguNzYxIDI5Ljc2MSA0MSAyNyA0MUg0QzEuMjM5IDQxIDAgMzguNzYxIDAgMzZWNUMwIDIuMjM5IDEuMjM5IDAgNCAwSDE1LjVaIiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg==",
+    "entryPointComponent": "bias-detector-landing",
+    "description": "Bias Detection and Analysis Tool",
+    "componentsDirPath": "web-components",
+    "components": [
+        {
+            "name": "bias-detector-landing",
+            "presenterClassName": "BiasDetectorLanding",
+            "type": "pages"
+        },
+        {
+            "name": "bias-detector-page",
+            "presenterClassName": "BiasDetectorPage",
+            "type": "pages"
+        },
+        {
+            "name": "bias-detector-visualization",
+            "presenterClassName": "BiasDetectorVisualization",
+            "type": "components"
+        },
+        {
+            "name": "bias-detector-results",
+            "presenterClassName": "BiasDetectorResults",
+            "type": "components"
+        }
+    ],
+    "services": [
+        {
+            "serviceName": "RoutingService",
+            "servicePath": "services/RoutingService.js"
+        }
+    ],
+    "manager": {
+        "path": "manager.js",
+        "name": "Manager"
     }
-  ],
-  "services": [
-    {
-      "serviceName": "RoutingService",
-      "servicePath": "services/RoutingService.js"
-    },
-    {
-      "serviceName": "BiasAnalysisService",
-      "servicePath": "services/BiasAnalysisService.js"
-    },
-    {
-      "serviceName": "VisualizationService",
-      "servicePath": "services/VisualizationService.js"
-    }
-  ],
-  "manager": {
-    "path": "manager.js",
-    "name": "Manager"
-  }
 } 
