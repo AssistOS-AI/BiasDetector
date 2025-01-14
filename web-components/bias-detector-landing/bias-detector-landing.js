@@ -43,17 +43,17 @@ export class BiasDetectorLanding {
             return;
         }
 
-        // try {
-        //     // Navigate to analysis page with parameters
-        //     RoutingService.navigateInternal('bias-detector-page', {
-        //         personality,
-        //         prompt,
-        //         text,
-        //         topBiases
-        //     });
-        // } catch (error) {
-        //     console.error('Error during analysis:', error);
-        //     alert('An error occurred during analysis. Please try again.');
-        // }
+        try {
+            // Navigate to analysis page with parameters
+            RoutingService.navigateInternal('bias-detector-page', {
+                personality,
+                prompt,
+                text,
+                topBiases
+            });
+        } catch (error) {
+            console.error('Error during analysis:', error);
+            alert('An error occurred during analysis. Please try again.');
+        }
     }
 } 
