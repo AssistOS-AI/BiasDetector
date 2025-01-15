@@ -72,9 +72,7 @@ export class BiasAnalysisService {
                     return {
                         biases: jsonResponse.biases.slice(0, length),
                         scores: jsonResponse.scores.slice(0, length),
-                        explanations: jsonResponse.explanations.slice(0, length).map(exp =>
-                            exp.length > 100 ? exp.substring(0, 100) + '...' : exp
-                        )
+                        explanations: jsonResponse.explanations.slice(0, length)
                     };
                 } else {
                     throw new Error('Response missing message property');
