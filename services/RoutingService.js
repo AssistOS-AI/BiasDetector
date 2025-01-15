@@ -25,15 +25,13 @@ export class RoutingService {
         await assistOS.UI.changeToDynamicPage(webComponentName, pageUrl);
     }
 
-    static navigateInternal(subpageName, presenterParams) {
-        const composePresenterParams = (presenterParams) => {
-            let presenterParamsString = "";
-            Object.keys(presenterParams).forEach((key) => {
-                presenterParamsString += ` data-${key}='${presenterParams[key]}'`;
-            });
-            return presenterParamsString;
+    static async navigateInternal(subpageName, presenterParams) {
+        try {
+            const pageUrl = `${assistOS.space.id}/BiasDetector/${subpageName}`;
+            await assistOS.UI.changeToDynamicPage(subpageName, pageUrl, presenterParams);
+        } catch (error) {
+            console.error('Navigation error:', error);
+            throw error;
         }
-        const appContainer = document.querySelector("#bias-detector-app-container")
-        appContainer.innerHTML = `<${subpageName} data-presenter="${subpageName}" ${composePresenterParams(presenterParams)}></${subpageName}>`;
     }
 } 

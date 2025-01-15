@@ -1,17 +1,28 @@
 <div class="container">
+    <button id="backBtn" class="back-button">← Back</button>
+
     <div class="main-content">
-        <button id="backBtn">← Back to Input</button>
-        <div class="visualization">
+        <div class="visualization-section">
             <h2>Bias Visualization</h2>
-            <div id="visualizationContainer"></div>
+            <div class="visualization-container">
+                <svg width="800" height="600">
+                    <defs>
+                        <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5"
+                            markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 0 L 10 5 L 0 10" fill="#999"/>
+                        </marker>
+                    </defs>
+                    <g id="quadrants"></g>
+                    <g id="axes"></g>
+                    <g id="points"></g>
+                    <g id="labels"></g>
+                </svg>
+            </div>
         </div>
-        <div class="detailed-analysis">
+
+        <div class="results-section">
             <h2>Detailed Analysis</h2>
-            <div id="explanationContainer"></div>
+            <div id="biasResults"></div>
         </div>
     </div>
-    <div class="results">
-        <h2>Detected Biases</h2>
-        <div id="biasListContainer"></div>
-    </div>
-</div> 
+</div>

@@ -27,11 +27,13 @@ export class BiasDetectorLanding {
             console.log('Documents:', documents);
             this.documents = documents;
             this.documentOptions = documents.map(doc => {
-                return `<option value="${doc.id}">${doc.title}</option>`;
+                const title = doc.title || doc.name || doc.id;
+                return `<option value="${doc.id}">${title}</option>`;
             });
         } catch (error) {
             console.error('Error loading data:', error);
             this.personalityOptions = [];
+            this.documentOptions = [];
         }
     }
 
@@ -43,40 +45,44 @@ export class BiasDetectorLanding {
     setupSourceToggle() {
         const sourceOptions = this.element.querySelectorAll('.source-option');
         const sourceContents = this.element.querySelectorAll('.source-content');
-        const textInput = this.element.querySelector('#text');
-        const documentSelect = this.element.querySelector('#document');
-
-        // Initially disable the hidden document select
-        if (!documentSelect.closest('.source-content').classList.contains('active')) {
-            documentSelect.removeAttribute('required');
-            documentSelect.disabled = true;
-        }
+        const textInput = this.element.querySelector('textarea[name="text"]');
+        const documentSelect = this.element.querySelector('select[name="document"]');
 
         sourceOptions.forEach(option => {
             option.addEventListener('click', () => {
                 // Update active states
                 sourceOptions.forEach(opt => opt.classList.remove('active'));
-                sourceContents.forEach(content => content.classList.remove('active'));
                 option.classList.add('active');
 
                 // Show corresponding content
-                const sourceType = option.getAttribute('data-source');
-                const content = this.element.querySelector(`#${sourceType}Input`);
-                content.classList.add('active');
+                sourceContents.forEach(content => content.style.display = 'none');
+                const isEnterText = option.textContent.includes('Enter Text');
+                sourceContents[isEnterText ? 0 : 1].style.display = 'block';
 
-                // Update required and disabled attributes
-                if (sourceType === 'text') {
-                    textInput.setAttribute('required', '');
-                    textInput.disabled = false;
-                    documentSelect.removeAttribute('required');
-                    documentSelect.disabled = true;
-                } else {
-                    documentSelect.setAttribute('required', '');
-                    documentSelect.disabled = false;
-                    textInput.removeAttribute('required');
-                    textInput.disabled = true;
+                // Update required attributes
+                textInput.required = isEnterText;
+                documentSelect.required = !isEnterText;
+
+                if (!isEnterText) {
+                    const selectedDocument = documentSelect.value;
+                    const selectedTitle = documentSelect.options[documentSelect.selectedIndex]?.text;
+                    console.log('Document selection activated:', { id: selectedDocument, title: selectedTitle });
                 }
             });
+        });
+
+        // Add change listener to document select
+        documentSelect.addEventListener('change', async (e) => {
+            const documentId = e.target.value;
+            const documentTitle = e.target.options[e.target.selectedIndex]?.text;
+            console.log('Selected document:', { id: documentId, title: documentTitle });
+
+            try {
+                const document = await documentModule.getDocument(assistOS.space.id, documentId);
+                console.log('Document retrieved:', document);
+            } catch (error) {
+                console.error('Error loading document:', error);
+            }
         });
     }
 
@@ -88,48 +94,76 @@ export class BiasDetectorLanding {
         });
     }
 
-    async handleAnalysis(_target) {
-        const formData = await assistOS.UI.extractFormInformation(_target);
-        
-        if (formData.isValid) {
-            const personality = formData.data.personality;
-            const prompt = formData.data.prompt;
-            const topBiases = parseInt(formData.data.topBiases);
+    async extractDocumentContent(document) {
+        if (!document) return '';
 
-            // Get text based on an active source
-            const activeSource = this.element.querySelector('.source-option.active').getAttribute('data-source');
+        if (document.content) {
+            return document.content;
+        }
+
+        if (document.chapters) {
+            return document.chapters.map(chapter => {
+                const chapterTexts = [];
+
+                if (chapter.title) {
+                    chapterTexts.push(`Chapter: ${chapter.title}`);
+                }
+
+                if (chapter.paragraphs && chapter.paragraphs.length > 0) {
+                    const paragraphsText = chapter.paragraphs
+                        .filter(p => p && p.text)
+                        .map(p => p.text)
+                        .join('\n\n');
+
+                    if (paragraphsText) {
+                        chapterTexts.push(paragraphsText);
+                    }
+                }
+
+                return chapterTexts.filter(text => text && text.trim()).join('\n\n');
+            }).filter(text => text && text.trim()).join('\n\n');
+        }
+
+        return '';
+    }
+
+    async handleAnalysis(form) {
+        try {
+            const formData = await assistOS.UI.extractFormInformation(form);
+            if (!formData.isValid) {
+                return;
+            }
+
+            const { personality, prompt, topBiases } = formData.data;
             let text;
 
-            if (activeSource === 'text') {
+            // Get text based on active source
+            const textSource = this.element.querySelector('.source-option.active');
+            if (textSource.textContent.includes('Enter Text')) {
                 text = formData.data.text;
             } else {
                 const documentId = formData.data.document;
-                if (!documentId) {
-                    alert('Please select a document');
-                    return;
-                }
-                try {
-                    const document = await documentModule.getDocument(assistOS.space.id, documentId);
-                    text = document.content;
-                } catch (error) {
-                    console.error('Error fetching document:', error);
-                    alert('Error loading document content. Please try again.');
-                    return;
+                const document = await documentModule.getDocument(assistOS.space.id, documentId);
+                text = await this.extractDocumentContent(document);
+
+                if (!text) {
+                    throw new Error('Could not extract text from document');
                 }
             }
 
-            try {
-                // Navigate to analysis page with parameters
-                RoutingService.navigateInternal('bias-detector-page', {
-                    personality,
-                    prompt,
-                    text,
-                    topBiases
-                });
-            } catch (error) {
-                console.error('Error during analysis:', error);
-                alert('An error occurred during analysis. Please try again.');
-            }
+            // Get personality name
+            const personalitySelect = this.element.querySelector('select[name="personality"]');
+            const selectedOption = personalitySelect.options[personalitySelect.selectedIndex];
+            const personalityName = selectedOption ? selectedOption.textContent : personality;
+
+            await RoutingService.navigateInternal('bias-detector-page', {
+                personality: personalityName,
+                prompt,
+                text,
+                'top-biases': topBiases
+            });
+        } catch (error) {
+            console.error('Error during analysis:', error);
         }
     }
 } 
