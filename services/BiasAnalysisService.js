@@ -24,14 +24,17 @@ export class BiasAnalysisService {
             // Prepare the analysis prompt
             const prompt = `
             Analyze the following text for potential biases. For each bias detected:
-            1. Name the specific type of bias (keep it concise and clear)
-            2. Rate its strength on a scale of 0-1 (use a decimal number)
-            3. Provide a brief explanation (maximum 100 words) of why this bias is present
+            1. Name the specific type of bias (keep it concise, clear, and avoid quotes or special characters)
+            2. Rate its strength on a scale of -10 to 10, where:
+               - Negative values (-10 to -1) indicate harmful biases
+               - Zero (0) indicates neutral or no bias
+               - Positive values (1 to 10) indicate beneficial biases
+            3. Provide a brief explanation of why this bias is present (do not include the rating in the explanation - maximum 150 words)
             
             You must respond in valid JSON format with this exact structure:
             {
                 "biases": ["bias1", "bias2", ...],
-                "scores": [0.8, 0.6, ...],
+                "scores": [-8.5, 6.2, ...],
                 "explanations": ["brief explanation 1", "brief explanation 2", ...]
             }
 
@@ -39,7 +42,12 @@ export class BiasAnalysisService {
             - Keep explanations concise and clear
             - Do not repeat text or get stuck in loops
             - Ensure the response is valid JSON
-            - Each explanation should be under 100 words
+            - Use decimal numbers for scores between -10 and 10
+            - Do not use quotes or special characters in bias names
+            - Ensure all arrays have the same length
+            - Do not include ratings in explanations
+            - Keep bias names short and clear
+            - Each explanation should be under 150 words
 
             Text to analyze:
             ${text}

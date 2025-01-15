@@ -127,28 +127,46 @@ export class BiasDetectorPage {
             return;
         }
 
-        // Draw quadrant lines
-        quadrants.innerHTML = `
-            <line class="quadrant-line" x1="${centerX}" y1="0" x2="${centerX}" y2="${height}"/>
-            <line class="quadrant-line" x1="0" y1="${centerY}" x2="${width}" y2="${centerY}"/>
+        // Draw axis lines and labels
+        const axisLength = radius * 1.2;
+        axes.innerHTML = `
+            <line class="axis-line" x1="${centerX - axisLength}" y1="${centerY}" x2="${centerX + axisLength}" y2="${centerY}" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+            <line class="axis-line" x1="${centerX}" y1="${centerY + axisLength}" x2="${centerX}" y2="${centerY - axisLength}" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+            <text x="${centerX + axisLength + 10}" y="${centerY + 20}" class="axis-label">Bias Strength</text>
+            <text x="${centerX - 40}" y="${centerY - axisLength - 10}" class="axis-label">Bias Impact</text>
         `;
 
-        // Draw axes
-        axes.innerHTML = `
-            <line class="axis-line" x1="0" y1="${centerY}" x2="${width}" y2="${centerY}"/>
-            <line class="axis-line" x1="${centerX}" y1="${height}" x2="${centerX}" y2="0"/>
-        `;
+        // Draw scale markers
+        const scaleLines = [];
+        for (let i = -10; i <= 10; i += 2) {
+            const x = centerX + (i * axisLength / 10);
+            const y = centerY + (i * axisLength / 10);
+            scaleLines.push(`
+                <line class="scale-line" x1="${x}" y1="${centerY - 5}" x2="${x}" y2="${centerY + 5}"/>
+                <line class="scale-line" x1="${centerX - 5}" y1="${y}" x2="${centerX + 5}" y2="${y}"/>
+                <text x="${x}" y="${centerY + 20}" class="scale-text">${i}</text>
+                <text x="${centerX - 25}" y="${y + 5}" class="scale-text">${-i}</text>
+            `);
+        }
+        quadrants.innerHTML = scaleLines.join('');
 
         // Clear existing points and labels
         points.innerHTML = '';
         labels.innerHTML = '';
 
-        // Draw points and labels
+        // Calculate angles for radial layout
+        const angleStep = (2 * Math.PI) / biasResults.biases.length;
+
+        // Draw points and labels in a radial pattern
         biasResults.biases.forEach((bias, index) => {
-            const angle = (index * 2 * Math.PI) / biasResults.biases.length;
+            const angle = index * angleStep - Math.PI / 2; // Start from top
             const score = biasResults.scores[index];
-            const x = centerX + Math.cos(angle) * radius * score;
-            const y = centerY - Math.sin(angle) * radius * score;
+            // Map the score (-10 to 10) to a position on the axis
+            const distance = (score / 10) * radius;
+
+            // Calculate position using polar coordinates
+            const x = centerX + Math.cos(angle) * distance;
+            const y = centerY + Math.sin(angle) * distance;
 
             // Add point
             const point = document.createElementNS("http://www.w3.org/2000/svg", "circle");
@@ -156,14 +174,22 @@ export class BiasDetectorPage {
             point.setAttribute("cx", x);
             point.setAttribute("cy", y);
             point.setAttribute("r", "5");
+            // Color based on score (red for negative, blue for positive)
+            const color = score < 0 ? '#dc3545' : '#007bff';
+            point.setAttribute("fill", color);
+            point.setAttribute("stroke", score < 0 ? '#bd2130' : '#0056b3');
             points.appendChild(point);
 
-            // Add label
+            // Add label with score
             const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
             label.setAttribute("class", "bias-label");
-            label.setAttribute("x", x + 10);
-            label.setAttribute("y", y + 5);
-            label.textContent = `${bias} (${score.toFixed(2)})`;
+            // Position label based on quadrant to avoid overlap
+            const labelX = x + (Math.cos(angle) > 0 ? 10 : -10);
+            const labelY = y + (Math.sin(angle) > 0 ? 20 : -10);
+            label.setAttribute("x", labelX);
+            label.setAttribute("y", labelY);
+            label.setAttribute("text-anchor", Math.cos(angle) > 0 ? "start" : "end");
+            label.textContent = `${bias} (${score.toFixed(1)})`;
             labels.appendChild(label);
         });
     }

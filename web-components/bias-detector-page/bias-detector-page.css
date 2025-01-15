@@ -71,6 +71,23 @@ svg {
     stroke-width: 2;
 }
 
+.scale-line {
+    stroke: #ddd;
+    stroke-width: 1;
+}
+
+.scale-text {
+    font-size: 10px;
+    fill: #666;
+    text-anchor: middle;
+}
+
+.axis-label {
+    font-size: 14px;
+    fill: #333;
+    font-weight: 500;
+}
+
 .bias-point {
     fill: #007bff;
     stroke: #0056b3;
