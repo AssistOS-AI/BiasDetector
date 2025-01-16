@@ -1,12 +1,18 @@
 const llmModule = require('assistos').loadModule('llm', {});
+const personalityModule = require('assistos').loadModule('personality', {});
 
 export class BiasAnalysisService {
     constructor() {
         this.personality = null;
+        this.analysisPrompt = '';
     }
 
     setPersonality(personality) {
         this.personality = personality;
+    }
+
+    setAnalysisPrompt(prompt) {
+        this.analysisPrompt = prompt;
     }
 
     async analyzeText(text, topN = 5) {
@@ -15,14 +21,25 @@ export class BiasAnalysisService {
         }
 
         // Use the personality's LLM to analyze the text
-        const analysis = await this.detectBiases(text);
+        const analysis = await this.detectBiases(text, topN);
         return this.processAnalysisResults(analysis, topN);
     }
 
-    async detectBiases(text) {
+    async detectBiases(text, topN) {
         try {
+            // Get personality description
+            const personalityObj = await personalityModule.getPersonalityByName(assistOS.space.id, this.personality);
+            const personalityDescription = personalityObj.description;
+
             // Prepare the analysis prompt
             const prompt = `
+            You are analyzing this text with the following personality and context:
+            
+            Personality: ${this.personality}
+            Description: ${personalityDescription}
+            
+            User's Analysis Focus: ${this.analysisPrompt || 'Analyze the text for any potential biases'}
+
             Analyze the following text for potential biases. For each bias detected:
             1. Name the specific type of bias (keep it concise, clear, and avoid quotes or special characters)
             2. Rate its strength on a scale of -10 to 10, where:
@@ -39,6 +56,7 @@ export class BiasAnalysisService {
             }
 
             IMPORTANT:
+            - Return exactly ${topN} most significant biases
             - Keep explanations concise and clear
             - Do not repeat text or get stuck in loops
             - Ensure the response is valid JSON

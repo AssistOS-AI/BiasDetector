@@ -31,6 +31,15 @@ export class BiasDetectorPage {
         await this.analyze();
     }
 
+    // Add helper function to format bias names
+    formatBiasName(biasName) {
+        return biasName
+            .replace(/_/g, ' ') // Replace underscores with spaces
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize first letter of each word
+            .join(' ');
+    }
+
     setupEventListeners() {
         const backBtn = this.element.querySelector('#backBtn');
         if (backBtn) {
@@ -38,19 +47,6 @@ export class BiasDetectorPage {
                 await RoutingService.navigateInternal('bias-detector-landing', {});
             });
         }
-    }
-
-    prepareVisualizationData(biasResults) {
-        if (!biasResults || !biasResults.biases || !biasResults.scores) {
-            return [];
-        }
-
-        // Normalize scores to be between 0 and 1
-        const maxScore = Math.max(...biasResults.scores);
-        return biasResults.biases.map((bias, index) => ({
-            name: bias,
-            score: biasResults.scores[index] / (maxScore || 1)
-        }));
     }
 
     async analyze() {
@@ -75,6 +71,7 @@ export class BiasDetectorPage {
             }
 
             this.biasService.setPersonality(personality);
+            this.biasService.setAnalysisPrompt(prompt);
             const biasResults = await this.biasService.analyzeText(text, topBiases);
 
             // Log analysis results as a structured object
@@ -112,9 +109,12 @@ export class BiasDetectorPage {
 
         const width = parseInt(svg.getAttribute('width'));
         const height = parseInt(svg.getAttribute('height'));
-        const centerX = width / 2;
-        const centerY = height / 2;
-        const radius = Math.min(width, height) * 0.4;
+        const leftPadding = width * 0.15; // 15% of width for left padding
+        const rightPadding = width * 0.1; // 10% of width for right padding
+        const bottomPadding = 70; // Extra padding for bottom labels
+        const graphHeight = height - bottomPadding;
+        const graphWidth = width - (leftPadding + rightPadding);
+        const radius = Math.min(graphWidth / 2, height - bottomPadding) * 0.8; // Adjusted radius calculation
 
         // Get SVG groups
         const quadrants = svg.querySelector('#quadrants');
@@ -127,46 +127,76 @@ export class BiasDetectorPage {
             return;
         }
 
-        // Draw axis lines and labels
-        const axisLength = radius * 1.2;
-        axes.innerHTML = `
-            <line class="axis-line" x1="${centerX - axisLength}" y1="${centerY}" x2="${centerX + axisLength}" y2="${centerY}" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
-            <line class="axis-line" x1="${centerX}" y1="${centerY + axisLength}" x2="${centerX}" y2="${centerY - axisLength}" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
-            <text x="${centerX + axisLength + 10}" y="${centerY + 20}" class="axis-label">Bias Strength</text>
-            <text x="${centerX - 40}" y="${centerY - axisLength - 10}" class="axis-label">Bias Impact</text>
-        `;
-
-        // Draw scale markers
-        const scaleLines = [];
+        // Draw grid lines first
+        const gridLines = [];
         for (let i = -10; i <= 10; i += 2) {
-            const x = centerX + (i * axisLength / 10);
-            const y = centerY + (i * axisLength / 10);
-            scaleLines.push(`
-                <line class="scale-line" x1="${x}" y1="${centerY - 5}" x2="${x}" y2="${centerY + 5}"/>
-                <line class="scale-line" x1="${centerX - 5}" y1="${y}" x2="${centerX + 5}" y2="${y}"/>
-                <text x="${x}" y="${centerY + 20}" class="scale-text">${i}</text>
-                <text x="${centerX - 25}" y="${y + 5}" class="scale-text">${-i}</text>
+            // For vertical lines, map i directly to x position
+            const x = leftPadding + ((i + 10) * radius / 10);
+            // For horizontal lines, keep the same mapping
+            const y = graphHeight - ((i + 10) * radius / 10);
+
+            // Vertical grid lines
+            gridLines.push(`
+                <line class="scale-line" x1="${x}" y1="${graphHeight - 2 * radius}" x2="${x}" y2="${graphHeight}" />
+            `);
+
+            // Horizontal grid lines
+            gridLines.push(`
+                <line class="scale-line" x1="${leftPadding}" y1="${y}" x2="${leftPadding + 2 * radius}" y2="${y}" />
             `);
         }
-        quadrants.innerHTML = scaleLines.join('');
+
+        // Add zero reference lines with lighter style
+        const zeroX = leftPadding + (10 * radius / 10); // X position for vertical zero line
+        const zeroY = graphHeight - (10 * radius / 10); // Y position for horizontal zero line
+
+        gridLines.push(`
+            <!-- Vertical zero line -->
+            <line class="zero-line" x1="${zeroX}" y1="${graphHeight - 2 * radius}" x2="${zeroX}" y2="${graphHeight}" 
+                  style="stroke: #ccc; stroke-width: 1; stroke-opacity: 0.5;" />
+            <!-- Horizontal zero line -->
+            <line class="zero-line" x1="${leftPadding}" y1="${zeroY}" x2="${leftPadding + 2 * radius}" y2="${zeroY}"
+                  style="stroke: #ccc; stroke-width: 1; stroke-opacity: 0.5;" />
+        `);
+
+        quadrants.innerHTML = gridLines.join('');
+
+        // Draw main axes
+        axes.innerHTML = `
+            <!-- X-axis -->
+            <line class="axis-line" x1="${leftPadding}" y1="${graphHeight}" x2="${leftPadding + 2 * radius}" y2="${graphHeight}" />
+            <!-- Y-axis -->
+            <line class="axis-line" x1="${leftPadding}" y1="${graphHeight}" x2="${leftPadding}" y2="${graphHeight - 2 * radius}" />
+            
+            <!-- Axis labels -->
+            <text x="${leftPadding + 2 * radius + 20}" y="${graphHeight + 20}" class="axis-label">Bias Strength</text>
+            <text x="${leftPadding - 40}" y="${graphHeight - 2 * radius - 10}" class="axis-label">Bias Impact</text>
+            
+            <!-- Scale markers -->
+            ${Array.from({length: 11}, (_, i) => {
+            const value = i * 2 - 10; // Values from -10 to 10
+            // For x-axis values, map them directly
+            const x = leftPadding + ((value + 10) * radius / 10);
+            // For y-axis values, keep the same mapping
+            const yPos = graphHeight - ((value + 10) * radius / 10);
+            return `
+                    <text x="${x}" y="${graphHeight + 20}" class="scale-text">${value}</text>
+                    <text x="${leftPadding - 25}" y="${yPos}" class="scale-text">${value}</text>
+                `;
+        }).join('')}
+        `;
 
         // Clear existing points and labels
         points.innerHTML = '';
         labels.innerHTML = '';
 
-        // Calculate angles for radial layout
-        const angleStep = (2 * Math.PI) / biasResults.biases.length;
-
-        // Draw points and labels in a radial pattern
+        // Draw points and labels
         biasResults.biases.forEach((bias, index) => {
-            const angle = index * angleStep - Math.PI / 2; // Start from top
             const score = biasResults.scores[index];
-            // Map the score (-10 to 10) to a position on the axis
-            const distance = (score / 10) * radius;
 
-            // Calculate position using polar coordinates
-            const x = centerX + Math.cos(angle) * distance;
-            const y = centerY + Math.sin(angle) * distance;
+            // Calculate position (x is score mapped to -10 to 10 range, y is impact)
+            const x = leftPadding + ((score + 10) * radius / 10); // Map score to x position
+            const y = graphHeight - ((score + 10) * radius / 10); // Keep same y mapping
 
             // Add point
             const point = document.createElementNS("http://www.w3.org/2000/svg", "circle");
@@ -174,22 +204,18 @@ export class BiasDetectorPage {
             point.setAttribute("cx", x);
             point.setAttribute("cy", y);
             point.setAttribute("r", "5");
-            // Color based on score (red for negative, blue for positive)
-            const color = score < 0 ? '#dc3545' : '#007bff';
-            point.setAttribute("fill", color);
-            point.setAttribute("stroke", score < 0 ? '#bd2130' : '#0056b3');
+            point.setAttribute("fill", "#007bff");
+            point.setAttribute("stroke", "#0056b3");
             points.appendChild(point);
 
-            // Add label with score
+            // Add score label above point
             const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
             label.setAttribute("class", "bias-label");
-            // Position label based on quadrant to avoid overlap
-            const labelX = x + (Math.cos(angle) > 0 ? 10 : -10);
-            const labelY = y + (Math.sin(angle) > 0 ? 20 : -10);
-            label.setAttribute("x", labelX);
-            label.setAttribute("y", labelY);
-            label.setAttribute("text-anchor", Math.cos(angle) > 0 ? "start" : "end");
-            label.textContent = `${bias} (${score.toFixed(1)})`;
+            label.setAttribute("x", x);
+            label.setAttribute("y", y - 15); // Position 15 pixels above the point
+            label.setAttribute("text-anchor", "middle"); // Center the text above the point
+            label.setAttribute("dominant-baseline", "auto");
+            label.textContent = score.toFixed(1);
             labels.appendChild(label);
         });
     }
@@ -210,10 +236,11 @@ export class BiasDetectorPage {
         const resultsHtml = biasResults.biases.map((bias, index) => {
             const score = biasResults.scores[index];
             const explanation = biasResults.explanations[index];
+            const formattedBiasName = this.formatBiasName(bias);
 
             return `
                 <div class="bias-item">
-                    <div class="bias-name">${bias}</div>
+                    <div class="bias-name">${formattedBiasName}</div>
                     <div class="bias-score">Score: ${score.toFixed(2)}</div>
                     <div class="bias-explanation">${explanation}</div>
                 </div>
