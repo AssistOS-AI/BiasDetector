@@ -59,9 +59,11 @@ export class BiasDetectorLanding {
                 const isEnterText = option.textContent.includes('Enter Text');
                 sourceContents[isEnterText ? 0 : 1].style.display = 'block';
 
-                // Update required attributes
+                // Update required attributes and disabled state
                 textInput.required = isEnterText;
+                textInput.disabled = !isEnterText;
                 documentSelect.required = !isEnterText;
+                documentSelect.disabled = isEnterText;
 
                 if (!isEnterText) {
                     const selectedDocument = documentSelect.value;
