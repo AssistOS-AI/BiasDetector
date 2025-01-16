@@ -1,0 +1,69 @@
+<div class="modal-content">
+    <div class="modal-header">
+        <h1>Bias Detection Analysis</h1>
+        <p class="subtitle">Analyze text for potential biases and get detailed insights</p>
+        <button id="closeModalBtn" class="close-button">&times;</button>
+    </div>
+    
+    <form id="biasForm" class="form-content">
+        <div class="form-group">
+            <label for="personality">Select Personality</label>
+            <div class="input-wrapper">
+                <select id="personality" name="personality" data-id="personality" required>
+                    $$personalityOptions
+                </select>
+                <div class="input-info">Choose a personality to analyze the text</div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="prompt">Analysis Prompt</label>
+            <div class="input-wrapper">
+                <textarea id="prompt" name="prompt" data-id="prompt" required placeholder="Enter your analysis prompt here..."></textarea>
+                <div class="input-info">Provide context or specific aspects you want to analyze for bias</div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="topBiases">Number of Top Biases</label>
+            <div class="input-wrapper">
+                <input type="number" id="topBiases" name="topBiases" data-id="topBiases" value="3" min="1" required>
+                <div class="input-info">Select how many top biases to analyze</div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Source Selection</label>
+            <div class="source-toggle">
+                <div class="source-option active" data-source="text">Enter Text</div>
+                <div class="source-option" data-source="document">Choose Document</div>
+            </div>
+            
+            <div class="source-content active" id="textInput">
+                <div class="input-wrapper">
+                    <label for="text" class="sr-only">Text Content</label>
+                    <textarea id="text" name="text" data-id="text" required placeholder="Enter the text you want to analyze for bias..."></textarea>
+                    <div class="input-info">Paste your text here for bias analysis</div>
+                </div>
+            </div>
+
+            <div class="source-content" id="documentInput">
+                <div class="input-wrapper">
+                    <label for="document" class="sr-only">Select Document</label>
+                    <select id="document" name="document" data-id="document">
+                        <option value="">Select a document...</option>
+                        $$documentOptions
+                    </select>
+                    <div class="input-info">Choose an existing document to analyze</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="primary-button" id="analyzeButton">
+                <span class="button-icon">📊</span>
+                Evaluate Text
+            </button>
+        </div>
+    </form>
+</div> 

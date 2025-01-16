@@ -15,6 +15,11 @@
             "name": "bias-detector-page",
             "presenterClassName": "BiasDetectorPage",
             "type": "pages"
+        },
+        {
+            "name": "bias-detector-modal",
+            "presenterClassName": "BiasDetectorModal",
+            "type": "pages"
         }
     ],
     "services": [

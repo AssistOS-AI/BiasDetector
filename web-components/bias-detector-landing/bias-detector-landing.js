@@ -5,167 +5,103 @@ const documentModule = require('assistos').loadModule('document', {});
 
 export class BiasDetectorLanding {
     constructor(element, invalidate) {
+        this.notificationId = "biases";
+        this.refreshAnalyses = async () => {
+            this.analyses = await assistOS.space.getDocumentsMetadata(assistOS.space.id);
+            // Filter only bias analysis documents
+            this.analyses = this.analyses.filter((document) => {
+                return document.title.startsWith("bias_analysis_");
+            }) || [];
+            // Clean up titles for display
+            this.analyses.forEach((analysis) => {
+                analysis.title = analysis.title.replace("bias_analysis_", "");
+            });
+        };
         this.element = element;
         this.invalidate = invalidate;
-        this.documents = [];
-        this.invalidate();
+        this.id = "biases";
+        this.invalidate(async () => {
+            await this.refreshAnalyses();
+            this.boundOnListUpdate = this.onListUpdate.bind(this);
+        });
+    }
+
+    onListUpdate() {
+        this.invalidate(this.refreshAnalyses);
     }
 
     async beforeRender() {
-        try {
-            // Load personalities from AssistOS
-            const personalities = await personalityModule.getPersonalitiesMetadata(assistOS.space.id);
-            console.log('Number of personalities:', personalities.length);
-            this.personalities = personalities;
-            this.personalityOptions = personalities.map(personality => {
-                return `<option value="${personality.id}">${personality.name}</option>`;
+        let analysesContent = "";
+        if (this.analyses && this.analyses.length > 0) {
+            this.analyses.forEach((analysis) => {
+                analysesContent += `
+                    <div class="analysis-card" data-id="${analysis.id}">
+                        <h3>${analysis.title}</h3>
+                        <div class="analysis-actions">
+                            <button class="view-btn" data-action="viewAnalysis">View Analysis</button>
+                        </div>
+                    </div>`;
             });
+        }
 
-            // Load documents from AssistOS
-            const documents = await documentModule.getDocumentsMetadata(assistOS.space.id);
-            console.log('Number of documents:', documents.length);
-            console.log('Documents:', documents);
-            this.documents = documents;
-            this.documentOptions = documents.map(doc => {
-                const title = doc.title || doc.name || doc.id;
-                return `<option value="${doc.id}">${title}</option>`;
+        // Add loading placeholders if there are pending tasks
+        if (assistOS.space.loadingDocuments) {
+            assistOS.space.loadingDocuments.forEach((taskId) => {
+                analysesContent += `
+                    <div data-id="${taskId}" class="analysis-card placeholder-analysis">
+                        <div class="loading-icon small"></div>
+                    </div>`;
             });
-        } catch (error) {
-            console.error('Error loading data:', error);
-            this.personalityOptions = [];
-            this.documentOptions = [];
+        }
+
+        // Show message if no analyses
+        if (!analysesContent) {
+            analysesContent = '<div class="no-analyses">No analyses available yet</div>';
+        }
+
+        const analysesList = this.element.querySelector('#analysesList');
+        if (analysesList) {
+            analysesList.innerHTML = analysesContent;
         }
     }
 
     async afterRender() {
         this.setupEventListeners();
-        this.setupSourceToggle();
-    }
-
-    setupSourceToggle() {
-        const sourceOptions = this.element.querySelectorAll('.source-option');
-        const sourceContents = this.element.querySelectorAll('.source-content');
-        const textInput = this.element.querySelector('textarea[name="text"]');
-        const documentSelect = this.element.querySelector('select[name="document"]');
-
-        sourceOptions.forEach(option => {
-            option.addEventListener('click', () => {
-                // Update active states
-                sourceOptions.forEach(opt => opt.classList.remove('active'));
-                option.classList.add('active');
-
-                // Show corresponding content
-                sourceContents.forEach(content => content.style.display = 'none');
-                const isEnterText = option.textContent.includes('Enter Text');
-                sourceContents[isEnterText ? 0 : 1].style.display = 'block';
-
-                // Update required attributes and disabled state
-                textInput.required = isEnterText;
-                textInput.disabled = !isEnterText;
-                documentSelect.required = !isEnterText;
-                documentSelect.disabled = isEnterText;
-
-                if (!isEnterText) {
-                    const selectedDocument = documentSelect.value;
-                    const selectedTitle = documentSelect.options[documentSelect.selectedIndex]?.text;
-                    console.log('Document selection activated:', { id: selectedDocument, title: selectedTitle });
-                }
-            });
-        });
-
-        // Add change listener to document select
-        documentSelect.addEventListener('change', async (e) => {
-            const documentId = e.target.value;
-            const documentTitle = e.target.options[e.target.selectedIndex]?.text;
-            console.log('Selected document:', { id: documentId, title: documentTitle });
-
-            try {
-                const document = await documentModule.getDocument(assistOS.space.id, documentId);
-                console.log('Document retrieved:', document);
-            } catch (error) {
-                console.error('Error loading document:', error);
-            }
-        });
     }
 
     setupEventListeners() {
-        const form = this.element.querySelector('#biasForm');
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await this.handleAnalysis(form);
+        const newAnalysisBtn = this.element.querySelector('#newAnalysisBtn');
+        if (newAnalysisBtn) {
+            newAnalysisBtn.addEventListener('click', () => this.openNewAnalysisModal());
+        }
+
+        // Add click listeners for analysis cards
+        const analysisCards = this.element.querySelectorAll('.analysis-card');
+        analysisCards.forEach(card => {
+            const viewBtn = card.querySelector('[data-action="viewAnalysis"]');
+            if (viewBtn) {
+                viewBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.viewAnalysis(card.getAttribute('data-id'));
+                });
+            }
         });
     }
 
-    async extractDocumentContent(document) {
-        if (!document) return '';
+    async openNewAnalysisModal() {
+        const taskId = await assistOS.UI.showModal("bias-generator-modal", {
+            "presenter": "bias-generator-modal"
+        }, true);
 
-        if (document.content) {
-            return document.content;
+        if (taskId) {
+            assistOS.watchTask(taskId);
         }
-
-        if (document.chapters) {
-            return document.chapters.map(chapter => {
-                const chapterTexts = [];
-
-                if (chapter.title) {
-                    chapterTexts.push(`Chapter: ${chapter.title}`);
-                }
-
-                if (chapter.paragraphs && chapter.paragraphs.length > 0) {
-                    const paragraphsText = chapter.paragraphs
-                        .filter(p => p && p.text)
-                        .map(p => p.text)
-                        .join('\n\n');
-
-                    if (paragraphsText) {
-                        chapterTexts.push(paragraphsText);
-                    }
-                }
-
-                return chapterTexts.filter(text => text && text.trim()).join('\n\n');
-            }).filter(text => text && text.trim()).join('\n\n');
-        }
-
-        return '';
     }
 
-    async handleAnalysis(form) {
-        try {
-            const formData = await assistOS.UI.extractFormInformation(form);
-            if (!formData.isValid) {
-                return;
-            }
-
-            const { personality, prompt, topBiases } = formData.data;
-            let text;
-
-            // Get text based on active source
-            const textSource = this.element.querySelector('.source-option.active');
-            if (textSource.textContent.includes('Enter Text')) {
-                text = formData.data.text;
-            } else {
-                const documentId = formData.data.document;
-                const document = await documentModule.getDocument(assistOS.space.id, documentId);
-                text = await this.extractDocumentContent(document);
-
-                if (!text) {
-                    throw new Error('Could not extract text from document');
-                }
-            }
-
-            // Get personality name
-            const personalitySelect = this.element.querySelector('select[name="personality"]');
-            const selectedOption = personalitySelect.options[personalitySelect.selectedIndex];
-            const personalityName = selectedOption ? selectedOption.textContent : personality;
-
-            await RoutingService.navigateInternal('bias-detector-page', {
-                personality: personalityName,
-                prompt,
-                text,
-                'top-biases': topBiases
-            });
-        } catch (error) {
-            console.error('Error during analysis:', error);
-        }
+    async viewAnalysis(analysisId) {
+        await assistOS.UI.changeToDynamicPage(
+            "bias-detector-page",
+            `${assistOS.space.id}/BiasDetector/bias-detector-page/${analysisId}`
+        );
     }
 } 
