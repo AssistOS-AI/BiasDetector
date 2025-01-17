@@ -1,7 +1,9 @@
 import {RoutingService} from "../../services/RoutingService.js";
 
+const applicationModule = require('assistos').loadModule('application', {});
 const personalityModule = require('assistos').loadModule('personality', {});
 const documentModule = require('assistos').loadModule('document', {});
+const utilModule = require('assistos').loadModule('util', {});
 
 export class BiasGeneratorModal {
     constructor(element, invalidate) {
@@ -40,25 +42,10 @@ export class BiasGeneratorModal {
     async afterRender() {
         this.setupEventListeners();
         this.setupSourceToggle();
-        this.setupModalHandlers();
     }
 
-    setupModalHandlers() {
-        const closeModalBtn = this.element.querySelector('#closeModalBtn');
-        closeModalBtn.addEventListener('click', () => {
-            this.closeModal();
-        });
-
-        // Close modal when clicking outside
-        this.element.addEventListener('click', (e) => {
-            if (e.target === this.element) {
-                this.closeModal();
-            }
-        });
-    }
-
-    closeModal() {
-        this.element.dispatchEvent(new CustomEvent('modal-close'));
+    async closeModal(_target) {
+        await assistOS.UI.closeModal(_target);
     }
 
     setupSourceToggle() {
@@ -69,40 +56,28 @@ export class BiasGeneratorModal {
 
         sourceOptions.forEach(option => {
             option.addEventListener('click', () => {
-                // Update active states
                 sourceOptions.forEach(opt => opt.classList.remove('active'));
                 option.classList.add('active');
 
-                // Show corresponding content
                 sourceContents.forEach(content => content.style.display = 'none');
                 const isEnterText = option.textContent.includes('Enter Text');
                 sourceContents[isEnterText ? 0 : 1].style.display = 'block';
 
-                // Update required attributes and disabled state
                 textInput.required = isEnterText;
                 textInput.disabled = !isEnterText;
                 documentSelect.required = !isEnterText;
                 documentSelect.disabled = isEnterText;
-
-                if (!isEnterText) {
-                    const selectedDocument = documentSelect.value;
-                    const selectedTitle = documentSelect.options[documentSelect.selectedIndex]?.text;
-                    console.log('Document selection activated:', { id: selectedDocument, title: selectedTitle });
-                }
             });
         });
 
-        // Add change listener to document select
         documentSelect.addEventListener('change', async (e) => {
             const documentId = e.target.value;
-            const documentTitle = e.target.options[e.target.selectedIndex]?.text;
-            console.log('Selected document:', { id: documentId, title: documentTitle });
-
-            try {
-                const document = await documentModule.getDocument(assistOS.space.id, documentId);
-                console.log('Document retrieved:', document);
-            } catch (error) {
-                console.error('Error loading document:', error);
+            if (documentId) {
+                try {
+                    await documentModule.getDocument(assistOS.space.id, documentId);
+                } catch (error) {
+                    console.error('Error loading document:', error);
+                }
             }
         });
     }
@@ -117,76 +92,57 @@ export class BiasGeneratorModal {
 
     async extractDocumentContent(document) {
         if (!document) return '';
-
-        if (document.content) {
-            return document.content;
-        }
-
+        if (document.content) return document.content;
         if (document.chapters) {
-            return document.chapters.map(chapter => {
-                const chapterTexts = [];
-
-                if (chapter.title) {
-                    chapterTexts.push(`Chapter: ${chapter.title}`);
-                }
-
-                if (chapter.paragraphs && chapter.paragraphs.length > 0) {
-                    const paragraphsText = chapter.paragraphs
-                        .filter(p => p && p.text)
-                        .map(p => p.text)
-                        .join('\n\n');
-
-                    if (paragraphsText) {
-                        chapterTexts.push(paragraphsText);
+            return document.chapters
+                .map(chapter => {
+                    const texts = [];
+                    if (chapter.title) texts.push(`Chapter: ${chapter.title}`);
+                    if (chapter.paragraphs) {
+                        texts.push(chapter.paragraphs
+                            .filter(p => p && p.text)
+                            .map(p => p.text)
+                            .join('\n\n'));
                     }
-                }
-
-                return chapterTexts.filter(text => text && text.trim()).join('\n\n');
-            }).filter(text => text && text.trim()).join('\n\n');
+                    return texts.filter(t => t && t.trim()).join('\n\n');
+                })
+                .filter(t => t && t.trim())
+                .join('\n\n');
         }
-
         return '';
     }
 
     async handleAnalysis(form) {
-        try {
+        await assistOS.loadifyFunction(async () => {
             const formData = await assistOS.UI.extractFormInformation(form);
             if (!formData.isValid) {
-                return;
+                return assistOS.UI.showApplicationError("Invalid form data", "Please fill all the required fields", "error");
             }
 
-            const { personality, prompt, topBiases } = formData.data;
-            let text;
+            const { personality, prompt, text, document: documentId, topBiases } = formData.data;
+            let analysisData = {
+                personality,
+                prompt,
+                topBiases,
+                text: text
+            };
 
-            // Get text based on active source
-            const textSource = this.element.querySelector('.source-option.active');
-            if (textSource.textContent.includes('Enter Text')) {
-                text = formData.data.text;
-            } else {
-                const documentId = formData.data.document;
+            if (!text) {
                 const document = await documentModule.getDocument(assistOS.space.id, documentId);
-                text = await this.extractDocumentContent(document);
-
-                if (!text) {
+                analysisData.text = await this.extractDocumentContent(document);
+                if (!analysisData.text) {
                     throw new Error('Could not extract text from document');
                 }
             }
 
-            // Get personality name
-            const personalitySelect = this.element.querySelector('select[name="personality"]');
-            const selectedOption = personalitySelect.options[personalitySelect.selectedIndex];
-            const personalityName = selectedOption ? selectedOption.textContent : personality;
+            const taskId = await applicationModule.runApplicationTask(
+                assistOS.space.id,
+                "BiasDetector",
+                "GenerateAnalysis",
+                analysisData
+            );
 
-            await RoutingService.navigateInternal('bias-detector-page', {
-                personality: personalityName,
-                prompt,
-                text,
-                'top-biases': topBiases
-            });
-            
-            this.closeModal();
-        } catch (error) {
-            console.error('Error during analysis:', error);
-        }
+            await this.closeModal(this.element, taskId);
+        });
     }
 } 
