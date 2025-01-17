@@ -44,8 +44,8 @@ export class BiasGeneratorModal {
         this.setupSourceToggle();
     }
 
-    async closeModal(_target) {
-        await assistOS.UI.closeModal(_target);
+    async closeModal(_target, taskId) {
+        await assistOS.UI.closeModal(_target, taskId);
     }
 
     setupSourceToggle() {
@@ -153,7 +153,7 @@ export class BiasGeneratorModal {
                 );
                 console.log('Task created with ID:', taskId);
 
-                await this.closeModal(this.element, taskId);
+                await assistOS.UI.closeModal(this.element, taskId);
             });
         } catch (error) {
             console.error('Error in handleAnalysis:', error);
