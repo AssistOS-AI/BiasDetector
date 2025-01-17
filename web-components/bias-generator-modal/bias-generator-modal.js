@@ -113,36 +113,51 @@ export class BiasGeneratorModal {
     }
 
     async handleAnalysis(form) {
-        await assistOS.loadifyFunction(async () => {
-            const formData = await assistOS.UI.extractFormInformation(form);
-            if (!formData.isValid) {
-                return assistOS.UI.showApplicationError("Invalid form data", "Please fill all the required fields", "error");
-            }
+        try {
+            console.log('Starting analysis...');
+            await assistOS.loadifyFunction(async () => {
+                console.log('Extracting form data...');
+                const formData = await assistOS.UI.extractFormInformation(form);
+                console.log('Form data:', formData);
 
-            const { personality, prompt, text, document: documentId, topBiases } = formData.data;
-            let analysisData = {
-                personality,
-                prompt,
-                topBiases,
-                text: text
-            };
-
-            if (!text) {
-                const document = await documentModule.getDocument(assistOS.space.id, documentId);
-                analysisData.text = await this.extractDocumentContent(document);
-                if (!analysisData.text) {
-                    throw new Error('Could not extract text from document');
+                if (!formData.isValid) {
+                    console.error('Invalid form data');
+                    return assistOS.UI.showApplicationError("Invalid form data", "Please fill all the required fields", "error");
                 }
-            }
 
-            const taskId = await applicationModule.runApplicationTask(
-                assistOS.space.id,
-                "BiasDetector",
-                "GenerateAnalysis",
-                analysisData
-            );
+                const { personality, prompt, text, document: documentId, topBiases } = formData.data;
+                console.log('Extracted data:', { personality, prompt, text, documentId, topBiases });
 
-            await this.closeModal(this.element, taskId);
-        });
+                let analysisData = {
+                    personality,
+                    prompt,
+                    topBiases,
+                    text: text
+                };
+
+                if (!text) {
+                    console.log('Getting document content...');
+                    const document = await documentModule.getDocument(assistOS.space.id, documentId);
+                    analysisData.text = await this.extractDocumentContent(document);
+                    if (!analysisData.text) {
+                        throw new Error('Could not extract text from document');
+                    }
+                }
+
+                console.log('Running application task with data:', analysisData);
+                const taskId = await applicationModule.runApplicationTask(
+                    assistOS.space.id,
+                    "BiasDetector",
+                    "GenerateAnalysis",
+                    analysisData
+                );
+                console.log('Task created with ID:', taskId);
+
+                await this.closeModal(this.element, taskId);
+            });
+        } catch (error) {
+            console.error('Error in handleAnalysis:', error);
+            assistOS.UI.showApplicationError("Analysis Error", error.message, "error");
+        }
     }
 } 
