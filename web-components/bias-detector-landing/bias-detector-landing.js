@@ -9,11 +9,21 @@ export class BiasDetectorLanding {
         this.invalidate = invalidate;
         this.documents = [];
         this.refreshDocuments = async () => {
-            this.documents = await assistOS.space.getDocumentsMetadata(assistOS.space.id);
+            const documentsMetadata = await assistOS.space.getDocumentsMetadata(assistOS.space.id);
             // Filter only bias analysis documents
-            this.documents = this.documents.filter((doc) => {
-                return doc.title.startsWith("bias_analysis_");
-            }) || [];
+            const biasDocuments = documentsMetadata.filter((doc) => doc.title.startsWith("bias_analysis_")) || [];
+
+            // Get complete documents with all metadata
+            this.documents = await Promise.all(
+                biasDocuments.map(async (doc) => {
+                    const fullDoc = await documentModule.getDocument(assistOS.space.id, doc.id);
+                    return {
+                        ...doc,
+                        ...fullDoc,
+                        metadata: fullDoc.metadata || {}
+                    };
+                })
+            );
         };
         this.invalidate(async () => {
             await this.refreshDocuments();
@@ -32,9 +42,33 @@ export class BiasDetectorLanding {
             console.log('Full document object:', doc);
             console.log('Metadata:', doc.metadata);
 
-            const metadata = doc.metadata || {};
-            const timestamp = metadata.timestamp ? new Date(metadata.timestamp).toLocaleString() : 'N/A';
-            const personality = metadata.personality || 'N/A';
+            let abstract = {};
+            try {
+                if (typeof doc.abstract === 'string') {
+                    // Use textarea to decode HTML entities
+                    const textarea = document.createElement('textarea');
+                    textarea.innerHTML = doc.abstract;
+                    let decodedAbstract = textarea.value;
+
+                    // Clean up the decoded string
+                    decodedAbstract = decodedAbstract
+                        .replace(/\n/g, '')     // Remove newlines
+                        .replace(/\r/g, '')     // Remove carriage returns
+                        .replace(/\s+/g, ' ')   // Replace multiple spaces with single space
+                        .trim();                // Remove leading/trailing whitespace
+
+                    console.log('Decoded abstract:', decodedAbstract);
+                    abstract = JSON.parse(decodedAbstract);
+                } else if (doc.abstract && typeof doc.abstract === 'object') {
+                    abstract = doc.abstract;
+                }
+            } catch (error) {
+                console.error('Error handling abstract:', error);
+                console.error('Raw abstract:', doc.abstract);
+            }
+
+            const timestamp = abstract.timestamp ? new Date(abstract.timestamp).toLocaleString() : 'N/A';
+            const personality = abstract.personality_name || 'N/A';
 
             this.tableRows += `
                 <div class="analysis-card" data-id="${doc.id}">
@@ -82,8 +116,9 @@ export class BiasDetectorLanding {
             const content = item.querySelector('.analysis-content');
             if (content) {
                 content.addEventListener('click', async () => {
-                    const docId = item.getAttribute('data-id');
-                    await this.viewAnalysis(docId);
+                    // Get the parent card element which has the data-id
+                    const card = content.closest('.analysis-card');
+                    await this.editAction(card);
                 });
             }
         });
@@ -106,10 +141,6 @@ export class BiasDetectorLanding {
 
     getDocumentId(_target) {
         return _target.getAttribute('data-id');
-    }
-
-    async viewAnalysis(docId) {
-        await assistOS.UI.changeToDynamicPage("space-application-page", `${assistOS.space.id}/BiasDetector/bias-detector-page/${docId}`);
     }
 
     async openBiasDetectorModal() {
