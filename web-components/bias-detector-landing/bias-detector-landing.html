@@ -2,7 +2,7 @@
     <div class="content-card">
         <div class="header">
             <h1>Bias Analysis Dashboard</h1>
-            <button id="newAnalysisBtn" class="new-analysis-button">
+            <button id="newAnalysisBtn" class="new-analysis-button" data-local-action="openBiasDetectorModal">
                 <span class="button-icon">📊</span>
                 New Analysis
             </button>
@@ -12,8 +12,8 @@
 
         <div class="analyses-section">
             <h2>Recent Analyses</h2>
-            <div id="analysesList" class="analyses-container">
-                <!-- Analyses will be populated here -->
+            <div class="analyses-container">
+                $$tableRows
             </div>
         </div>
     </div>

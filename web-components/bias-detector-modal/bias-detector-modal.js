@@ -1,11 +1,8 @@
-import {RoutingService} from "../../services/RoutingService.js";
-
 const applicationModule = require('assistos').loadModule('application', {});
 const personalityModule = require('assistos').loadModule('personality', {});
 const documentModule = require('assistos').loadModule('document', {});
-const utilModule = require('assistos').loadModule('util', {});
 
-export class BiasGeneratorModal {
+export class BiasDetectorModal {
     constructor(element, invalidate) {
         this.element = element;
         this.invalidate = invalidate;

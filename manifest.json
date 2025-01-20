@@ -17,8 +17,8 @@
             "type": "pages"
         },
         {
-            "name": "bias-generator-modal",
-            "presenterClassName": "BiasGeneratorModal",
+            "name": "bias-detector-modal",
+            "presenterClassName": "BiasDetectorModal",
             "type": "pages"
         }
     ],
