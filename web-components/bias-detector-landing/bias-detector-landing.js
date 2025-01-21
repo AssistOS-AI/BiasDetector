@@ -438,31 +438,4 @@ export class BiasDetectorLanding {
             await this.afterRender();
         });
     }
-
-    render() {
-        return `
-            <div class="bias-detector-landing">
-                <div class="main-card">
-                    <div class="header">
-                        <h2>Bias Analyses</h2>
-                        <button class="action-btn" data-local-action="newAnalysis" data-tooltip="New Analysis">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M12 4v16m8-8H4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="analyses-list">
-                        ${this.tableRows}
-                    </div>
-                    <hr class="divider" />
-                    <div class="header">
-                        <h2>Explained Analyses</h2>
-                    </div>
-                    <div class="analyses-list">
-                        ${this.explainedRows}
-                    </div>
-                </div>
-            </div>
-        `;
-    }
 }
