@@ -126,6 +126,25 @@ h2 {
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
+}
+
+.action-btn:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    font-size: 12px;
+    border-radius: 4px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 1;
+    transition: opacity 0.15s ease;
 }
 
 .action-btn svg {
@@ -138,14 +157,14 @@ h2 {
     color: #4a5568;
 }
 
-.edit-btn:hover {
-    color: #4299e1;
-    background: rgba(66, 153, 225, 0.1);
-}
-
 .delete-btn:hover {
     color: #e53e3e;
     background: rgba(229, 62, 62, 0.1);
+}
+
+.generate-btn:hover {
+    color: #4299e1;
+    background: rgba(34, 197, 94, 0.1);
 }
 
 .placeholder-analysis {
