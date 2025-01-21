@@ -8,14 +8,30 @@ export class BiasDetectorLanding {
         this.element = element;
         this.invalidate = invalidate;
         this.documents = [];
+        this.explainedDocuments = [];
         this.refreshDocuments = async () => {
             const documentsMetadata = await assistOS.space.getDocumentsMetadata(assistOS.space.id);
-            // Filter only bias analysis documents
+
+            // Filter bias analysis documents
             const biasDocuments = documentsMetadata.filter((doc) => doc.title.startsWith("bias_analysis_")) || [];
+
+            // Filter bias explained documents
+            const explainedDocuments = documentsMetadata.filter((doc) => doc.title.startsWith("bias_explained_")) || [];
 
             // Get complete documents with all metadata
             this.documents = await Promise.all(
                 biasDocuments.map(async (doc) => {
+                    const fullDoc = await documentModule.getDocument(assistOS.space.id, doc.id);
+                    return {
+                        ...doc,
+                        ...fullDoc,
+                        metadata: fullDoc.metadata || {}
+                    };
+                })
+            );
+
+            this.explainedDocuments = await Promise.all(
+                explainedDocuments.map(async (doc) => {
                     const fullDoc = await documentModule.getDocument(assistOS.space.id, doc.id);
                     return {
                         ...doc,
@@ -37,34 +53,27 @@ export class BiasDetectorLanding {
 
     async beforeRender() {
         this.tableRows = "";
-        this.documents.forEach((doc) => {
-            console.log('Document:', doc.title);
-            console.log('Full document object:', doc);
-            console.log('Metadata:', doc.metadata);
+        this.explainedRows = "";
 
+        // Generate rows for bias analysis documents
+        this.documents.forEach((doc) => {
             let abstract = {};
             try {
                 if (typeof doc.abstract === 'string') {
-                    // Use textarea to decode HTML entities
                     const textarea = document.createElement('textarea');
                     textarea.innerHTML = doc.abstract;
                     let decodedAbstract = textarea.value;
-
-                    // Clean up the decoded string
                     decodedAbstract = decodedAbstract
-                        .replace(/\n/g, '')     // Remove newlines
-                        .replace(/\r/g, '')     // Remove carriage returns
-                        .replace(/\s+/g, ' ')   // Replace multiple spaces with single space
-                        .trim();                // Remove leading/trailing whitespace
-
-                    console.log('Decoded abstract:', decodedAbstract);
+                        .replace(/\n/g, '')
+                        .replace(/\r/g, '')
+                        .replace(/\s+/g, ' ')
+                        .trim();
                     abstract = JSON.parse(decodedAbstract);
                 } else if (doc.abstract && typeof doc.abstract === 'object') {
                     abstract = doc.abstract;
                 }
             } catch (error) {
                 console.error('Error handling abstract:', error);
-                console.error('Raw abstract:', doc.abstract);
             }
 
             const timestamp = abstract.timestamp ? new Date(abstract.timestamp).toLocaleString() : 'N/A';
@@ -99,6 +108,48 @@ export class BiasDetectorLanding {
                 </div>`;
         });
 
+        // Generate rows for explained documents
+        this.explainedDocuments.forEach((doc) => {
+            let abstract = {};
+            try {
+                if (typeof doc.abstract === 'string') {
+                    const textarea = document.createElement('textarea');
+                    textarea.innerHTML = doc.abstract;
+                    let decodedAbstract = textarea.value;
+                    decodedAbstract = decodedAbstract
+                        .replace(/\n/g, '')
+                        .replace(/\r/g, '')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                    abstract = JSON.parse(decodedAbstract);
+                } else if (doc.abstract && typeof doc.abstract === 'object') {
+                    abstract = doc.abstract;
+                }
+            } catch (error) {
+                console.error('Error handling abstract:', error);
+                console.error('Raw abstract:', doc.abstract);
+            }
+
+            const timestamp = abstract && abstract.timestamp ? new Date(abstract.timestamp).toLocaleString() : new Date(doc.metadata.createdAt).toLocaleString();
+
+            this.explainedRows += `
+                <div class="analysis-card" data-id="${doc.id}">
+                    <div class="analysis-content" data-local-action="viewAnalysis">
+                        <h3>${doc.title}</h3>
+                        <div class="analysis-meta">
+                            <span class="timestamp">${timestamp}</span>
+                        </div>
+                    </div>
+                    <div class="analysis-actions">
+                        <button class="action-btn delete-btn" data-local-action="deleteAction" data-id="${doc.id}" data-tooltip="Delete">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>`;
+        });
+
         if (assistOS.space.loadingDocuments) {
             assistOS.space.loadingDocuments.forEach((taskId) => {
                 this.tableRows += `
@@ -110,6 +161,10 @@ export class BiasDetectorLanding {
 
         if (this.tableRows === "") {
             this.tableRows = `<div class="no-analyses">No analyses found</div>`;
+        }
+
+        if (this.explainedRows === "") {
+            this.explainedRows = `<div class="no-analyses">No analyses found</div>`;
         }
     }
 
@@ -155,4 +210,259 @@ export class BiasDetectorLanding {
             assistOS.watchTask(taskId);
         }
     }
-} 
+
+    async generateAction(_target) {
+        const documentId = this.getDocumentId(_target);
+        const sourceDoc = await documentModule.getDocument(assistOS.space.id, documentId);
+        const spaceModule = require("assistos").loadModule("space", {});
+
+        console.log('Source Document:', sourceDoc);
+
+        // Initialize arrays for biases and scores
+        let biases = [];
+        let scores = [];
+        let explanations = [];
+
+        // Skip the first chapter (original text) and process the rest
+        if (sourceDoc.chapters && sourceDoc.chapters.length > 1) {
+            // Start from index 1 to skip the "Original Text" chapter
+            for (let i = 1; i < sourceDoc.chapters.length; i++) {
+                const chapter = sourceDoc.chapters[i];
+                // Extract bias name and score from chapter title
+                // Format: "bias_name (Score: {"x":number,"y":number})"
+                const titleMatch = chapter.title.match(/(.+?)\s*\(Score:\s*(\{.*?\})\)/);
+
+                if (titleMatch) {
+                    const biasName = titleMatch[1].trim();
+                    try {
+                        const score = JSON.parse(titleMatch[2]);
+                        biases.push(biasName);
+                        scores.push(score);
+
+                        // Get explanation from the chapter's paragraph
+                        if (chapter.paragraphs && chapter.paragraphs.length > 0) {
+                            explanations.push(chapter.paragraphs[0].text);
+                        }
+                    } catch (error) {
+                        console.error('Error parsing score JSON:', error);
+                    }
+                }
+            }
+        }
+
+        console.log('Extracted Biases:', biases);
+        console.log('Extracted Scores:', scores);
+        console.log('Extracted Explanations:', explanations);
+
+        if (biases.length === 0 || scores.length === 0 || explanations.length === 0) {
+            console.error('No bias data found in document');
+            return;
+        }
+
+        // Create new document structure
+        const newDocTitle = `bias_explained_${Date.now()}`;
+        const chapters = [];
+
+        // Create a temporary canvas in memory to generate the diagram
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = 1200;
+        tempCanvas.height = 1000;
+        const ctx = tempCanvas.getContext('2d');
+
+        // Draw the visualization
+        const width = tempCanvas.width;
+        const height = tempCanvas.height;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const padding = 80;
+
+        // Set up scale
+        const maxValue = 10;
+        const scale = (Math.min(width, height) - 2 * padding) / (2 * maxValue);
+
+        // Clear canvas with white background
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+
+        // Draw grid lines
+        ctx.strokeStyle = '#EEEEEE';
+        ctx.lineWidth = 1;
+        for (let i = -maxValue; i <= maxValue; i++) {
+            // Vertical grid line
+            const x = centerX + i * scale;
+            ctx.beginPath();
+            ctx.moveTo(x, padding);
+            ctx.lineTo(x, height - padding);
+            ctx.stroke();
+
+            // Horizontal grid line
+            const y = centerY - i * scale;
+            ctx.beginPath();
+            ctx.moveTo(padding, y);
+            ctx.lineTo(width - padding, y);
+            ctx.stroke();
+        }
+
+        // Draw axes
+        ctx.strokeStyle = '#CCCCCC';
+        ctx.lineWidth = 1;
+
+        // X-axis
+        ctx.beginPath();
+        ctx.moveTo(padding, centerY);
+        ctx.lineTo(width - padding, centerY);
+        ctx.stroke();
+
+        // Y-axis
+        ctx.beginPath();
+        ctx.moveTo(centerX, padding);
+        ctx.lineTo(centerX, height - padding);
+        ctx.stroke();
+
+        // Add axis labels
+        ctx.fillStyle = '#666666';
+        ctx.font = '28px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // X-axis labels (only -10, -5, 5, 10)
+        const labelValues = [-10, -5, 5, 10];
+        labelValues.forEach(value => {
+            const x = centerX + value * scale;
+            ctx.fillText(value.toString(), x, centerY + 35);
+        });
+
+        // Y-axis labels (only -10, -5, 5, 10)
+        labelValues.forEach(value => {
+            const y = centerY - value * scale;
+            ctx.fillText(value.toString(), centerX - 35, y);
+        });
+
+        // Add single 0 at center
+        ctx.fillText('0', centerX - 35, centerY + 35);
+
+        // Plot data points with labels
+        ctx.fillStyle = '#000000';
+        scores.forEach((score, i) => {
+            // Handle both old and new score formats
+            let x, y;
+            if (typeof score === 'object' && score.x !== undefined && score.y !== undefined) {
+                x = centerX + score.x * scale;
+                y = centerY - score.y * scale; // Negative because canvas Y is inverted
+            } else {
+                // Legacy format - plot on diagonal
+                x = centerX + score * scale;
+                y = centerY - score * scale;
+            }
+
+            // Draw point
+            ctx.beginPath();
+            ctx.arc(x, y, 10, 0, 2 * Math.PI);
+            ctx.fill();
+        });
+
+        // Convert canvas to binary data
+        const blob = await new Promise(resolve => tempCanvas.toBlob(resolve, 'image/png'));
+        const arrayBuffer = await blob.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+
+        // Upload the image and get its ID
+        const imageId = await spaceModule.putImage(uint8Array);
+
+        // Add first chapter with the image command
+        chapters.push({
+            title: "Bias Score Visualization",
+            content: "",
+            commands: {
+                image: {
+                    id: imageId,
+                    width: tempCanvas.width,
+                    height: tempCanvas.height
+                }
+            }
+        });
+
+        // Add chapters for each paragraph with analysis
+        if (sourceDoc.paragraphs) {
+            sourceDoc.paragraphs.forEach((para, index) => {
+                chapters.push({
+                    title: `Paragraph ${index + 1} Analysis`,
+                    content: para.text,
+                    analysis: para.analysis || "Analysis pending"
+                });
+            });
+        }
+
+        // Create the document object following the same structure as in GenerateAnalysis.js
+        const documentObj = {
+            title: newDocTitle,
+            type: 'bias_explained',
+            content: JSON.stringify(chapters, null, 2),
+            abstract: JSON.stringify({
+                type: "bias_explained",
+                sourceDocumentId: documentId,
+                chapters: chapters.map(c => ({ title: c.title })),
+                timestamp: new Date().toISOString()
+            }, null, 2),
+            metadata: {
+                id: null,  // This will be filled by the system
+                title: newDocTitle
+            }
+        };
+
+        // Use addDocument instead of createDocument
+        const newDocId = await documentModule.addDocument(assistOS.space.id, documentObj);
+
+        // Add chapters and paragraphs
+        for (const chapter of chapters) {
+            const chapterData = {
+                title: chapter.title,
+                idea: `Analysis of ${chapter.title}`
+            };
+
+            const chapterId = await documentModule.addChapter(assistOS.space.id, newDocId, chapterData);
+
+            // Add the content as a paragraph with commands if present
+            const paragraphObj = {
+                text: chapter.content,
+                commands: chapter.commands || {}
+            };
+
+            await documentModule.addParagraph(assistOS.space.id, newDocId, chapterId, paragraphObj);
+        }
+
+        // Refresh the documents and update the UI
+        await this.refreshDocuments();
+        this.invalidate(async () => {
+            await this.beforeRender();
+            await this.afterRender();
+        });
+    }
+
+    render() {
+        return `
+            <div class="bias-detector-landing">
+                <div class="main-card">
+                    <div class="header">
+                        <h2>Bias Analyses</h2>
+                        <button class="action-btn" data-local-action="newAnalysis" data-tooltip="New Analysis">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 4v16m8-8H4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="analyses-list">
+                        ${this.tableRows}
+                    </div>
+                    <hr class="divider" />
+                    <div class="header">
+                        <h2>Explained Analyses</h2>
+                    </div>
+                    <div class="analyses-list">
+                        ${this.explainedRows}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+}
