@@ -218,44 +218,51 @@ export class BiasDetectorLanding {
 
         console.log('Source Document:', sourceDoc);
 
-        // Initialize arrays for biases and scores
-        let biases = [];
-        let scores = [];
-        let explanations = [];
+        // Parse the content to get bias pairs
+        let biasPairs = [];
+        try {
+            // Skip first chapter (original text) and process the rest
+            if (sourceDoc.chapters && sourceDoc.chapters.length > 1) {
+                for (let i = 1; i < sourceDoc.chapters.length; i++) {
+                    const chapter = sourceDoc.chapters[i];
+                    // Extract bias type and scores from chapter title
+                    // Format: "Cultural Favoritism (Positive: {"x":4.2,"y":8.1}, Negative: {"x":-4.2,"y":-8.1})"
+                    const titleMatch = chapter.title.match(/(.+?)\s*\(Positive:\s*(\{.*?\}),\s*Negative:\s*(\{.*?\})\)/);
 
-        // Skip the first chapter (original text) and process the rest
-        if (sourceDoc.chapters && sourceDoc.chapters.length > 1) {
-            // Start from index 1 to skip the "Original Text" chapter
-            for (let i = 1; i < sourceDoc.chapters.length; i++) {
-                const chapter = sourceDoc.chapters[i];
-                // Extract bias name and score from chapter title
-                // Format: "bias_name (Score: {"x":number,"y":number})"
-                const titleMatch = chapter.title.match(/(.+?)\s*\(Score:\s*(\{.*?\})\)/);
+                    if (titleMatch) {
+                        const biasType = titleMatch[1].trim();
+                        const positiveScore = JSON.parse(titleMatch[2]);
+                        const negativeScore = JSON.parse(titleMatch[3]);
 
-                if (titleMatch) {
-                    const biasName = titleMatch[1].trim();
-                    try {
-                        const score = JSON.parse(titleMatch[2]);
-                        biases.push(biasName);
-                        scores.push(score);
+                        // Get explanations from paragraphs
+                        const positiveExplanation = chapter.paragraphs[0]?.text || '';
+                        const negativeExplanation = chapter.paragraphs[1]?.text || '';
 
-                        // Get explanation from the chapter's paragraph
-                        if (chapter.paragraphs && chapter.paragraphs.length > 0) {
-                            explanations.push(chapter.paragraphs[0].text);
-                        }
-                    } catch (error) {
-                        console.error('Error parsing score JSON:', error);
+                        biasPairs.push({
+                            bias_type: biasType,
+                            positive: {
+                                name: "positive_manifestation",
+                                score: positiveScore,
+                                explanation: positiveExplanation
+                            },
+                            negative: {
+                                name: "negative_manifestation",
+                                score: negativeScore,
+                                explanation: negativeExplanation
+                            }
+                        });
                     }
                 }
             }
+            console.log('Parsed bias pairs:', biasPairs);
+        } catch (error) {
+            console.error('Error parsing chapters:', error);
+            console.log('Raw chapters:', sourceDoc.chapters);
+            return;
         }
 
-        console.log('Extracted Biases:', biases);
-        console.log('Extracted Scores:', scores);
-        console.log('Extracted Explanations:', explanations);
-
-        if (biases.length === 0 || scores.length === 0 || explanations.length === 0) {
-            console.error('No bias data found in document');
+        if (!biasPairs || biasPairs.length === 0) {
+            console.error('No bias pairs found in document');
             return;
         }
 
@@ -341,23 +348,34 @@ export class BiasDetectorLanding {
         // Add single 0 at center
         ctx.fillText('0', centerX - 35, centerY + 35);
 
-        // Plot data points with labels
-        ctx.fillStyle = '#000000';
-        scores.forEach((score, i) => {
-            // Handle both old and new score formats
-            let x, y;
-            if (typeof score === 'object' && score.x !== undefined && score.y !== undefined) {
-                x = centerX + score.x * scale;
-                y = centerY - score.y * scale; // Negative because canvas Y is inverted
-            } else {
-                // Legacy format - plot on diagonal
-                x = centerX + score * scale;
-                y = centerY - score * scale;
-            }
+        // Plot data points and connecting lines
+        const colors = ['#FF0000', '#FFA500', '#FFD700', '#32CD32', '#4169E1', '#8A2BE2', '#FF69B4'];
+        biasPairs.forEach((pair, index) => {
+            // Get color for this pair (cycle through colors if more pairs than colors)
+            const color = colors[index % colors.length];
 
-            // Draw point
+            // Draw connecting line first (so it's behind points)
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.arc(x, y, 10, 0, 2 * Math.PI);
+            const x1 = centerX + pair.positive.score.x * scale;
+            const y1 = centerY - pair.positive.score.y * scale;
+            const x2 = centerX + pair.negative.score.x * scale;
+            const y2 = centerY - pair.negative.score.y * scale;
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+
+            // Plot points on top of line
+            ctx.fillStyle = '#000000';
+            // Plot positive bias
+            ctx.beginPath();
+            ctx.arc(x1, y1, 10, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Plot negative bias
+            ctx.beginPath();
+            ctx.arc(x2, y2, 10, 0, 2 * Math.PI);
             ctx.fill();
         });
 
@@ -382,18 +400,16 @@ export class BiasDetectorLanding {
             }
         });
 
-        // Add chapters for each paragraph with analysis
-        if (sourceDoc.paragraphs) {
-            sourceDoc.paragraphs.forEach((para, index) => {
-                chapters.push({
-                    title: `Paragraph ${index + 1} Analysis`,
-                    content: para.text,
-                    analysis: para.analysis || "Analysis pending"
-                });
+        // Add chapters for each bias pair
+        biasPairs.forEach((pair, index) => {
+            chapters.push({
+                title: `${pair.bias_type} Analysis`,
+                content: `Positive Bias: ${pair.positive.explanation}\n\nNegative Bias: ${pair.negative.explanation}`,
+                commands: {}
             });
-        }
+        });
 
-        // Create the document object following the same structure as in GenerateAnalysis.js
+        // Create the document object
         const documentObj = {
             title: newDocTitle,
             type: 'bias_explained',
@@ -405,15 +421,14 @@ export class BiasDetectorLanding {
                 timestamp: new Date().toISOString()
             }, null, 2),
             metadata: {
-                id: null,  // This will be filled by the system
+                id: null,
                 title: newDocTitle
             }
         };
 
-        // Use addDocument instead of createDocument
+        // Add document and its chapters
         const newDocId = await documentModule.addDocument(assistOS.space.id, documentObj);
 
-        // Add chapters and paragraphs
         for (const chapter of chapters) {
             const chapterData = {
                 title: chapter.title,
@@ -422,7 +437,6 @@ export class BiasDetectorLanding {
 
             const chapterId = await documentModule.addChapter(assistOS.space.id, newDocId, chapterData);
 
-            // Add the content as a paragraph with commands if present
             const paragraphObj = {
                 text: chapter.content,
                 commands: chapter.commands || {}
