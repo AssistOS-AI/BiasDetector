@@ -224,13 +224,22 @@ export class BiasDetectorLanding {
     }
 
     async generateAction(_target) {
-        const documentId = this.getDocumentId(_target);
-        const taskId = await assistOS.UI.showModal("bias-detector-explaining-modal", {
-            "presenter": "bias-detector-explaining-modal",
-            "documentId": documentId
-        }, true);
-        if (taskId) {
-            assistOS.watchTask(taskId);
+        try {
+            console.log('generateAction called with target:', _target);
+            const documentId = this.getDocumentId(_target);
+            console.log('documentId:', documentId);
+
+            console.log('Attempting to show modal...');
+            const taskId = await assistOS.UI.showModal("bias-detector-explaining-modal", {
+                "presenter": "bias-detector-explaining-modal",
+                "documentId": documentId
+            }, true);
+            console.log('Modal shown successfully');
+            if (taskId) {
+                assistOS.watchTask(taskId);
+            }
+        } catch (error) {
+            console.error('Error in generateAction:', error);
         }
     }
 }
