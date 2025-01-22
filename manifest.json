@@ -12,24 +12,20 @@
             "type": "pages"
         },
         {
-            "name": "bias-detector-page",
-            "presenterClassName": "BiasDetectorPage",
-            "type": "pages"
-        },
-        {
             "name": "bias-detector-modal",
             "presenterClassName": "BiasDetectorModal",
             "type": "pages"
+        },
+        {
+            "name": "bias-detector-explaining-modal",
+            "presenterClassName": "BiasDetectorExplainingModal",
+        "type": "pages"
         }
     ],
     "services": [
         {
             "serviceName": "RoutingService",
             "servicePath": "services/RoutingService.js"
-        },
-        {
-            "serviceName": "BiasAnalysisService",
-            "servicePath": "services/BiasAnalysisService.js"
         }
     ],
     "manager": {

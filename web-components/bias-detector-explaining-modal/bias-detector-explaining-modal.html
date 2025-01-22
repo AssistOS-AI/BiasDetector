@@ -1,0 +1,24 @@
+<div class="modal-overlay">
+    <div class="modal-content">
+        <button type="button" data-local-action="closeModal" class="close-button">&times;</button>
+
+        <form id="explainForm" class="form-content">
+            <div class="form-group">
+                <label for="personality">Select Personality for Explanation</label>
+                <div class="input-wrapper">
+                    <select id="personality" name="personality" data-id="personality" required>
+                        $$personalityOptions
+                    </select>
+                    <div class="input-info">Choose a personality to generate detailed explanations</div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="primary-button" id="explainButton">
+                    <span class="button-icon">📝</span>
+                    Generate Explanations
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

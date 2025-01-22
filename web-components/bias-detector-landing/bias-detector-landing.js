@@ -84,8 +84,20 @@ export class BiasDetectorLanding {
                     <div class="analysis-content" data-local-action="viewAnalysis">
                         <h3>${doc.title}</h3>
                         <div class="analysis-meta">
-                            <span class="personality">${personality}</span>
-                            <span class="timestamp">${timestamp}</span>
+                            <span class="personality">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                ${personality}
+                            </span>
+                            <span class="timestamp">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                ${timestamp}
+                            </span>
                         </div>
                     </div>
                     <div class="analysis-actions">
@@ -213,243 +225,12 @@ export class BiasDetectorLanding {
 
     async generateAction(_target) {
         const documentId = this.getDocumentId(_target);
-        const sourceDoc = await documentModule.getDocument(assistOS.space.id, documentId);
-        const spaceModule = require("assistos").loadModule("space", {});
-
-        console.log('Source Document:', sourceDoc);
-
-        // Parse the content to get bias pairs
-        let biasPairs = [];
-        try {
-            // Skip first chapter (original text) and process the rest
-            if (sourceDoc.chapters && sourceDoc.chapters.length > 1) {
-                for (let i = 1; i < sourceDoc.chapters.length; i++) {
-                    const chapter = sourceDoc.chapters[i];
-                    // Extract bias type and scores from chapter title
-                    // Format: "Cultural Favoritism (Positive: {"x":4.2,"y":8.1}, Negative: {"x":-4.2,"y":-8.1})"
-                    const titleMatch = chapter.title.match(/(.+?)\s*\(Positive:\s*(\{.*?\}),\s*Negative:\s*(\{.*?\})\)/);
-
-                    if (titleMatch) {
-                        const biasType = titleMatch[1].trim();
-                        const positiveScore = JSON.parse(titleMatch[2]);
-                        const negativeScore = JSON.parse(titleMatch[3]);
-
-                        // Get explanations from paragraphs
-                        const positiveExplanation = chapter.paragraphs[0]?.text || '';
-                        const negativeExplanation = chapter.paragraphs[1]?.text || '';
-
-                        biasPairs.push({
-                            bias_type: biasType,
-                            positive: {
-                                name: "positive_manifestation",
-                                score: positiveScore,
-                                explanation: positiveExplanation
-                            },
-                            negative: {
-                                name: "negative_manifestation",
-                                score: negativeScore,
-                                explanation: negativeExplanation
-                            }
-                        });
-                    }
-                }
-            }
-            console.log('Parsed bias pairs:', biasPairs);
-        } catch (error) {
-            console.error('Error parsing chapters:', error);
-            console.log('Raw chapters:', sourceDoc.chapters);
-            return;
+        const taskId = await assistOS.UI.showModal("bias-detector-explaining-modal", {
+            "presenter": "bias-detector-explaining-modal",
+            "documentId": documentId
+        }, true);
+        if (taskId) {
+            assistOS.watchTask(taskId);
         }
-
-        if (!biasPairs || biasPairs.length === 0) {
-            console.error('No bias pairs found in document');
-            return;
-        }
-
-        // Create new document structure
-        const newDocTitle = `bias_explained_${Date.now()}`;
-        const chapters = [];
-
-        // Create a temporary canvas in memory to generate the diagram
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = 1200;
-        tempCanvas.height = 1000;
-        const ctx = tempCanvas.getContext('2d');
-
-        // Draw the visualization
-        const width = tempCanvas.width;
-        const height = tempCanvas.height;
-        const centerX = width / 2;
-        const centerY = height / 2;
-        const padding = 80;
-
-        // Set up scale
-        const maxValue = 10;
-        const scale = (Math.min(width, height) - 2 * padding) / (2 * maxValue);
-
-        // Clear canvas with white background
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, width, height);
-
-        // Draw grid lines
-        ctx.strokeStyle = '#EEEEEE';
-        ctx.lineWidth = 1;
-        for (let i = -maxValue; i <= maxValue; i++) {
-            // Vertical grid line
-            const x = centerX + i * scale;
-            ctx.beginPath();
-            ctx.moveTo(x, padding);
-            ctx.lineTo(x, height - padding);
-            ctx.stroke();
-
-            // Horizontal grid line
-            const y = centerY - i * scale;
-            ctx.beginPath();
-            ctx.moveTo(padding, y);
-            ctx.lineTo(width - padding, y);
-            ctx.stroke();
-        }
-
-        // Draw axes
-        ctx.strokeStyle = '#CCCCCC';
-        ctx.lineWidth = 1;
-
-        // X-axis
-        ctx.beginPath();
-        ctx.moveTo(padding, centerY);
-        ctx.lineTo(width - padding, centerY);
-        ctx.stroke();
-
-        // Y-axis
-        ctx.beginPath();
-        ctx.moveTo(centerX, padding);
-        ctx.lineTo(centerX, height - padding);
-        ctx.stroke();
-
-        // Add axis labels
-        ctx.fillStyle = '#666666';
-        ctx.font = '28px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        // X-axis labels (only -10, -5, 5, 10)
-        const labelValues = [-10, -5, 5, 10];
-        labelValues.forEach(value => {
-            const x = centerX + value * scale;
-            ctx.fillText(value.toString(), x, centerY + 35);
-        });
-
-        // Y-axis labels (only -10, -5, 5, 10)
-        labelValues.forEach(value => {
-            const y = centerY - value * scale;
-            ctx.fillText(value.toString(), centerX - 35, y);
-        });
-
-        // Add single 0 at center
-        ctx.fillText('0', centerX - 35, centerY + 35);
-
-        // Plot data points and connecting lines
-        const colors = ['#FF0000', '#FFA500', '#FFD700', '#32CD32', '#4169E1', '#8A2BE2', '#FF69B4'];
-        biasPairs.forEach((pair, index) => {
-            // Get color for this pair (cycle through colors if more pairs than colors)
-            const color = colors[index % colors.length];
-
-            // Draw connecting line first (so it's behind points)
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            const x1 = centerX + pair.positive.score.x * scale;
-            const y1 = centerY - pair.positive.score.y * scale;
-            const x2 = centerX + pair.negative.score.x * scale;
-            const y2 = centerY - pair.negative.score.y * scale;
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-            ctx.stroke();
-
-            // Plot points on top of line
-            ctx.fillStyle = '#000000';
-            // Plot positive bias
-            ctx.beginPath();
-            ctx.arc(x1, y1, 10, 0, 2 * Math.PI);
-            ctx.fill();
-
-            // Plot negative bias
-            ctx.beginPath();
-            ctx.arc(x2, y2, 10, 0, 2 * Math.PI);
-            ctx.fill();
-        });
-
-        // Convert canvas to binary data
-        const blob = await new Promise(resolve => tempCanvas.toBlob(resolve, 'image/png'));
-        const arrayBuffer = await blob.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-
-        // Upload the image and get its ID
-        const imageId = await spaceModule.putImage(uint8Array);
-
-        // Add first chapter with the image command
-        chapters.push({
-            title: "Bias Score Visualization",
-            content: "",
-            commands: {
-                image: {
-                    id: imageId,
-                    width: tempCanvas.width,
-                    height: tempCanvas.height
-                }
-            }
-        });
-
-        // Add chapters for each bias pair
-        biasPairs.forEach((pair, index) => {
-            chapters.push({
-                title: `${pair.bias_type} Analysis`,
-                content: `Positive Bias: ${pair.positive.explanation}\n\nNegative Bias: ${pair.negative.explanation}`,
-                commands: {}
-            });
-        });
-
-        // Create the document object
-        const documentObj = {
-            title: newDocTitle,
-            type: 'bias_explained',
-            content: JSON.stringify(chapters, null, 2),
-            abstract: JSON.stringify({
-                type: "bias_explained",
-                sourceDocumentId: documentId,
-                chapters: chapters.map(c => ({ title: c.title })),
-                timestamp: new Date().toISOString()
-            }, null, 2),
-            metadata: {
-                id: null,
-                title: newDocTitle
-            }
-        };
-
-        // Add document and its chapters
-        const newDocId = await documentModule.addDocument(assistOS.space.id, documentObj);
-
-        for (const chapter of chapters) {
-            const chapterData = {
-                title: chapter.title,
-                idea: `Analysis of ${chapter.title}`
-            };
-
-            const chapterId = await documentModule.addChapter(assistOS.space.id, newDocId, chapterData);
-
-            const paragraphObj = {
-                text: chapter.content,
-                commands: chapter.commands || {}
-            };
-
-            await documentModule.addParagraph(assistOS.space.id, newDocId, chapterId, paragraphObj);
-        }
-
-        // Refresh the documents and update the UI
-        await this.refreshDocuments();
-        this.invalidate(async () => {
-            await this.beforeRender();
-            await this.afterRender();
-        });
     }
 }
