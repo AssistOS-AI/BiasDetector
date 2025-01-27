@@ -5,6 +5,7 @@
     "entryPointComponent": "bias-detector-landing",
     "description": "Bias Detection and Analysis Tool",
     "componentsDirPath": "web-components",
+    "dependencies": ["canvas"],
     "components": [
         {
             "name": "bias-detector-landing",
