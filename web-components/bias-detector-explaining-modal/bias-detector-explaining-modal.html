@@ -4,12 +4,12 @@
 
         <form id="explainForm" class="form-content">
             <div class="form-group">
-                <label for="personality">Select Personality for Explanation</label>
+                <label>Select Personalities for Explanation</label>
                 <div class="input-wrapper">
-                    <select id="personality" name="personality" data-id="personality" required>
+                    <div class="checkbox-list" id="personalityCheckboxes" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
                         $$personalityOptions
-                    </select>
-                    <div class="input-info">Choose a personality to generate detailed explanations</div>
+                    </div>
+                    <div class="input-info">Choose one or more personalities to generate detailed explanations</div>
                 </div>
             </div>
 

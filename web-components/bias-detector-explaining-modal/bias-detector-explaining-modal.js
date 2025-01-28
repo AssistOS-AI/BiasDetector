@@ -16,9 +16,12 @@ export class BiasDetectorExplainingModal {
             // Load personalities from AssistOS
             const personalities = await personalityModule.getPersonalitiesMetadata(assistOS.space.id);
             this.personalities = personalities;
-            this.personalityOptions = personalities.map(personality => {
-                return `<option value="${personality.id}">${personality.name}</option>`;
-            });
+            this.personalityOptions = personalities.map(personality =>
+                `<label class="checkbox-item">
+                    <input type="checkbox" name="personalities" value="${personality.id}">
+                    ${personality.name}
+                </label>`
+            ).join('');
         } catch (error) {
             console.error('Error loading personalities:', error);
             this.personalityOptions = [];
@@ -35,10 +38,24 @@ export class BiasDetectorExplainingModal {
 
     setupEventListeners() {
         const form = this.element.querySelector('#explainForm');
+        const submitButton = this.element.querySelector('#explainButton');
+        submitButton.disabled = true;
+        submitButton.style.opacity = '0.6';
+        submitButton.style.cursor = 'not-allowed';
+
         if (form) {
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 await this.handleExplanation(form);
+            });
+
+            const checkboxList = this.element.querySelector('#personalityCheckboxes');
+            checkboxList.addEventListener('change', () => {
+                const checkedBoxes = checkboxList.querySelectorAll('input[type="checkbox"]:checked');
+                const isDisabled = checkedBoxes.length === 0;
+                submitButton.disabled = isDisabled;
+                submitButton.style.opacity = isDisabled ? '0.6' : '1';
+                submitButton.style.cursor = isDisabled ? 'not-allowed' : 'pointer';
             });
         }
     }
@@ -49,17 +66,17 @@ export class BiasDetectorExplainingModal {
                 const formData = await assistOS.UI.extractFormInformation(form);
                 console.log('Form data:', formData);
 
-                if (!formData.isValid) {
-                    return assistOS.UI.showApplicationError("Invalid form data", "Please select a personality", "error");
-                }
-
-                const { personality } = formData.data;
-                if (!this.documentId) {
-                    return assistOS.UI.showApplicationError("Missing Document", "No document selected for analysis", "error");
+                // Get all checked checkboxes directly
+                const checkedBoxes = form.querySelectorAll('input[name="personalities"]:checked');
+                const selectedPersonalities = Array.from(checkedBoxes).map(cb => cb.value);
+                
+                console.log('Selected personalities (raw):', selectedPersonalities);
+                if (!selectedPersonalities.length) {
+                    return assistOS.UI.showApplicationError("Invalid form data", "Please select at least one personality", "error");
                 }
 
                 const taskData = {
-                    personality,
+                    personalities: selectedPersonalities,
                     sourceDocumentId: this.documentId
                 };
 
