@@ -257,7 +257,7 @@ module.exports = {
             this.logProgress("Creating visualization data...");
 
             const width = 6750;
-            const height = 2400;
+            const height = 3600;
             const padding = 450;
 
             // Calculate angles for bias lines
@@ -294,24 +294,31 @@ module.exports = {
                 }))
             }));
 
+            // Log biasStrengths to verify all biases are included
+            this.logInfo("Bias strengths for visualization:", biasStrengths);
+
+            // Log biasTypes to verify all bias types are included
+            this.logInfo("Bias types for visualization:", biasTypes);
+
             const barHeight = 60;
+            const biasSpacing = 120; // Increased space between rectangles
+            const groupHeight = barHeight + 80; // Height of each bias group including padding
             const maxBarWidth = width - (padding * 2);
-            const startY = 300;
-            const startX = padding;
+            const startY = (height / 2) - ((biasTypes.length * (groupHeight + biasSpacing)) / 2);
 
             // Draw strength bars for each bias type
             biasTypes.forEach((biasType, typeIndex) => {
-                const y = startY + (typeIndex * (barHeight + 120));
+                const y = startY + (typeIndex * (groupHeight + biasSpacing));
 
-                // Draw background rectangle for this bias group
+                // Draw background rectangle for this bias group with spacing
                 strengthCtx.fillStyle = typeIndex % 2 === 0 ? '#f0f0f0' : '#d8d8d8';
-                strengthCtx.fillRect(centerLineX - (maxBarWidth/2), y - 20, maxBarWidth * 1.5, barHeight + 80);
+                strengthCtx.fillRect(centerLineX - (maxBarWidth/2), y, maxBarWidth * 1.5, groupHeight);
 
                 // Legend text
                 strengthCtx.font = 'bold 72px Arial';
                 strengthCtx.textAlign = 'right';
                 strengthCtx.fillStyle = 'black';
-                strengthCtx.fillText(biasType, centerLineX - (maxBarWidth/2) + 1200, y + barHeight + 20);
+                strengthCtx.fillText(biasType, centerLineX - (maxBarWidth/2) + 1200, y + (groupHeight/2) + 25); // Increased offset from 10 to 25
 
                 // Draw bars for each personality
                 biasStrengths.forEach((personality, pIndex) => {
@@ -325,9 +332,9 @@ module.exports = {
 
                         strengthCtx.fillStyle = colors[pIndex];
                         // Draw against score bar (left side)
-                        strengthCtx.fillRect(centerLineX - againstWidth, y + yOffset, againstWidth, barHeight/2);
+                        strengthCtx.fillRect(centerLineX - againstWidth, y + yOffset + 20, againstWidth, barHeight/2);
                         // Draw for score bar (right side)
-                        strengthCtx.fillRect(centerLineX, y + yOffset, forWidth, barHeight/2);
+                        strengthCtx.fillRect(centerLineX, y + yOffset + 20, forWidth, barHeight/2);
 
                         // Add scores on both sides
                         strengthCtx.fillStyle = 'black';
@@ -336,14 +343,14 @@ module.exports = {
                         strengthCtx.textAlign = 'right';
                         strengthCtx.font = 'bold 60px Arial';
                         strengthCtx.fillText(`-${bias.against_score}`,
-                            centerLineX - againstWidth - 10, // 10px left of bar
-                            y + yOffset + (barHeight / 2) + 5); // Adjusted to middle of bar
+                            centerLineX - againstWidth - 10,
+                            y + yOffset + (barHeight/2) + 25);
 
                         // For score on right side
                         strengthCtx.textAlign = 'left';
                         strengthCtx.fillText(`${bias.for_score}`,
-                            centerLineX + forWidth + 10, // 10px right of bar
-                            y + yOffset + (barHeight / 2) + 5); // Adjusted to middle of bar
+                            centerLineX + forWidth + 10,
+                            y + yOffset + (barHeight/2) + 25);
                     }
                 });
             });
@@ -353,7 +360,7 @@ module.exports = {
             strengthCtx.strokeStyle = '#000000'; // Solid black
             strengthCtx.lineWidth = 8; // Increased from 4px (100%)
             strengthCtx.moveTo(centerLineX, startY - 50);  // Start above first bar
-            strengthCtx.lineTo(centerLineX, startY + (biasTypes.length - 1) * (barHeight + 120) + barHeight + 100);  // Added 100 more pixels at bottom
+            strengthCtx.lineTo(centerLineX, startY + (biasTypes.length - 1) * (groupHeight + biasSpacing) + groupHeight + 100);
             strengthCtx.stroke();
 
             // Add legend at the bottom with clear separation
