@@ -335,15 +335,15 @@ module.exports = {
                         // Against score on left side
                         strengthCtx.textAlign = 'right';
                         strengthCtx.font = 'bold 60px Arial';
-                        strengthCtx.fillText(`${bias.against_score}`,
+                        strengthCtx.fillText(`-${bias.against_score}`,
                             centerLineX - againstWidth - 10, // 10px left of bar
-                            y + yOffset + (barHeight/3));
+                            y + yOffset + (barHeight / 2) + 5); // Adjusted to middle of bar
 
                         // For score on right side
                         strengthCtx.textAlign = 'left';
                         strengthCtx.fillText(`${bias.for_score}`,
                             centerLineX + forWidth + 10, // 10px right of bar
-                            y + yOffset + (barHeight/3));
+                            y + yOffset + (barHeight / 2) + 5); // Adjusted to middle of bar
                     }
                 });
             });
@@ -363,7 +363,7 @@ module.exports = {
             strengthCtx.fillStyle = 'black';
             strengthCtx.fillText('Legend:', padding, strengthLegendStartY);
 
-            // Add strength explanation to the right of "Legend:"
+            // Add strength explanation to the right of "Legend"
             strengthCtx.font = 'bold 60px Arial';
             const legendTextX = padding + 300;
             strengthCtx.fillText('Values shown as: Balance (Against score, For score)', legendTextX, strengthLegendStartY);
@@ -382,10 +382,20 @@ module.exports = {
             });
 
             // Convert canvas to buffer
+            this.logInfo("Converting canvas to image buffer...");
             const buffer = strengthCanvas.toBuffer('image/png');
+            this.logInfo("Image buffer size:", buffer.length);
 
             // Upload image
-            const imageId = await spaceModule.putImage(buffer);
+            this.logInfo("Uploading image to AssistOS...");
+            let imageId; // Declare imageId outside the try block
+            try {
+                imageId = await spaceModule.putImage(buffer); // Assign value inside try
+                this.logInfo("Image uploaded successfully. Image ID:", imageId);
+            } catch (uploadError) {
+                this.logError("Failed to upload image:", uploadError.message);
+                throw uploadError;
+            }
 
             // Create and save the document
             this.logProgress("Creating document object...");
