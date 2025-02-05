@@ -256,7 +256,7 @@ module.exports = {
             // Create visualization data
             this.logProgress("Creating visualization data...");
 
-            const width = 6750;
+            const width = 9000;
             const height = 3600;
             const padding = 450;
 
@@ -300,9 +300,9 @@ module.exports = {
             // Log biasTypes to verify all bias types are included
             this.logInfo("Bias types for visualization:", biasTypes);
 
-            const barHeight = 60;
-            const biasSpacing = 120; // Increased space between rectangles
-            const groupHeight = barHeight + 80; // Height of each bias group including padding
+            const barHeight = 90; // Increased from 60
+            const biasSpacing = 120; // Increased from 120
+            const groupHeight = barHeight + 120; // Increased from 80
             const maxBarWidth = width - (padding * 2);
             const startY = (height / 2) - ((biasTypes.length * (groupHeight + biasSpacing)) / 2);
 
@@ -312,13 +312,15 @@ module.exports = {
 
                 // Draw background rectangle for this bias group with spacing
                 strengthCtx.fillStyle = typeIndex % 2 === 0 ? '#f0f0f0' : '#d8d8d8';
-                strengthCtx.fillRect(centerLineX - (maxBarWidth/2), y, maxBarWidth * 1.5, groupHeight);
+                strengthCtx.fillRect(0, y, width, groupHeight); // Changed to start from 0 and extend to full width
 
                 // Legend text
-                strengthCtx.font = 'bold 72px Arial';
+                strengthCtx.font = 'bold 108px Arial'; // Increased from 72px
                 strengthCtx.textAlign = 'right';
                 strengthCtx.fillStyle = 'black';
-                strengthCtx.fillText(biasType, centerLineX - (maxBarWidth/2) + 1200, y + (groupHeight/2) + 25); // Increased offset from 10 to 25
+                strengthCtx.fillText(biasType, 
+                    centerLineX - (maxBarWidth/2) + 1800, // Increased from 1200 to use more width
+                    y + (groupHeight/2) + 35); // Adjusted for larger font
 
                 // Draw bars for each personality
                 biasStrengths.forEach((personality, pIndex) => {
@@ -341,16 +343,16 @@ module.exports = {
 
                         // Against score on left side
                         strengthCtx.textAlign = 'right';
-                        strengthCtx.font = 'bold 60px Arial';
+                        strengthCtx.font = 'bold 90px Arial'; // Increased from 60px
                         strengthCtx.fillText(`-${bias.against_score}`,
-                            centerLineX - againstWidth - 10,
-                            y + yOffset + (barHeight/2) + 25);
+                            centerLineX - againstWidth - 15, // Adjusted spacing
+                            y + yOffset + (barHeight/2) + 35);
 
                         // For score on right side
                         strengthCtx.textAlign = 'left';
                         strengthCtx.fillText(`${bias.for_score}`,
-                            centerLineX + forWidth + 10,
-                            y + yOffset + (barHeight/2) + 25);
+                            centerLineX + forWidth + 15, // Adjusted spacing
+                            y + yOffset + (barHeight/2) + 35);
                     }
                 });
             });
@@ -364,27 +366,27 @@ module.exports = {
             strengthCtx.stroke();
 
             // Add legend at the bottom with clear separation
-            const strengthLegendStartY = height - padding + 50; // Position legend below the diagram
-            strengthCtx.font = 'bold 72px Arial';
+            const strengthLegendStartY = height - padding + (height * 0.10); // Changed to 5%
+            strengthCtx.font = 'bold 108px Arial'; // Increased from 72px
             strengthCtx.textAlign = 'left';
             strengthCtx.fillStyle = 'black';
             strengthCtx.fillText('Legend:', padding, strengthLegendStartY);
 
-            // Add strength explanation to the right of "Legend"
-            strengthCtx.font = 'bold 60px Arial';
-            const legendTextX = padding + 300;
+            // Legend explanation
+            strengthCtx.font = 'bold 90px Arial';
+            const legendTextX = padding + 450; // Increased from 50 to prevent overlap
             strengthCtx.fillText('Values shown as: Balance (Against score, For score)', legendTextX, strengthLegendStartY);
 
             // Add personality colors next to the legend explanation
             biasStrengths.forEach((personality, index) => {
-                const xPos = legendTextX + 1800 + (index * 600); // Increased from 1200 to 1800 and spacing from 400 to 600
+                const xPos = legendTextX + 2400 + (index * 800); // Increased spacing between personality colors
                 strengthCtx.fillStyle = colors[index];
                 strengthCtx.beginPath();
                 strengthCtx.arc(xPos, strengthLegendStartY - 20, 30, 0, 2 * Math.PI);
                 strengthCtx.fill();
                 strengthCtx.fillStyle = 'black';
                 strengthCtx.textAlign = 'left';
-                strengthCtx.font = 'bold 60px Arial';
+                strengthCtx.font = 'bold 90px Arial';
                 strengthCtx.fillText(personality.name, xPos + 50, strengthLegendStartY);
             });
 
