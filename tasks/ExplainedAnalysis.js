@@ -223,7 +223,7 @@ module.exports = {
 
             const width = 9000;
             const height = 3600;
-            const padding = 450;
+            const balancePadding = 450;
 
             // Calculate angles for bias lines
             const biasTypes = [...new Set(allPersonalityExplanations[0].scored_biases.map(b => b.bias_type))];
@@ -240,7 +240,7 @@ module.exports = {
 
             // Calculate the center line position
             const centerLineX = width/2;
-            const scaleUnit = (width/2 - padding) / MAX_SCORE;
+            const scaleUnit = (width/2 - balancePadding) / MAX_SCORE;
 
             // Draw title for strength comparison
             strengthCtx.font = 'bold 81px Arial';
@@ -262,10 +262,10 @@ module.exports = {
             // Log biasTypes to verify all bias types are included
             this.logInfo("Bias types for visualization:", biasTypes);
 
-            const barHeight = 90; // Increased from 60
+            const balanceBarHeight = 90; // Increased from 60
             const biasSpacing = 120; // Increased from 120
-            const groupHeight = barHeight + 120; // Increased from 80
-            const maxBarWidth = width - (padding * 2);
+            const groupHeight = balanceBarHeight + 120; // Increased from 80
+            const maxBarWidth = width - (balancePadding * 2);
             const startY = (height / 2) - ((biasTypes.length * (groupHeight + biasSpacing)) / 2);
 
             // Draw strength bars for each bias type
@@ -288,7 +288,7 @@ module.exports = {
                 biasStrengths.forEach((personality, pIndex) => {
                     const bias = personality.biases.find(b => b.type === biasType);
                     if (bias) {
-                        const yOffset = pIndex * (barHeight + 20);
+                        const yOffset = pIndex * (balanceBarHeight + 20);
 
                         // Calculate bar dimensions for against and for scores
                         const againstWidth = bias.against_score * scaleUnit * 0.5;
@@ -296,9 +296,9 @@ module.exports = {
 
                         strengthCtx.fillStyle = colors[pIndex];
                         // Draw against score bar (left side)
-                        strengthCtx.fillRect(centerLineX - againstWidth, y + yOffset + 20, againstWidth, barHeight/2);
+                        strengthCtx.fillRect(centerLineX - againstWidth, y + yOffset + 20, againstWidth, balanceBarHeight/2);
                         // Draw for score bar (right side)
-                        strengthCtx.fillRect(centerLineX, y + yOffset + 20, forWidth, barHeight/2);
+                        strengthCtx.fillRect(centerLineX, y + yOffset + 20, forWidth, balanceBarHeight/2);
 
                         // Add scores on both sides
                         strengthCtx.fillStyle = 'black';
@@ -308,13 +308,13 @@ module.exports = {
                         strengthCtx.font = 'bold 90px Arial'; // Increased from 60px
                         strengthCtx.fillText(`-${bias.against_score}`,
                             centerLineX - againstWidth - 15, // Adjusted spacing
-                            y + yOffset + (barHeight/2) + 35);
+                            y + yOffset + (balanceBarHeight/2) + 35);
 
                         // For score on the right side
                         strengthCtx.textAlign = 'left';
                         strengthCtx.fillText(`${bias.for_score}`,
                             centerLineX + forWidth + 15, // Adjusted spacing
-                            y + yOffset + (barHeight/2) + 35);
+                            y + yOffset + (balanceBarHeight/2) + 35);
                     }
                 });
             });
@@ -328,15 +328,15 @@ module.exports = {
             strengthCtx.stroke();
 
             // Add legend at the bottom with clear separation
-            const strengthLegendStartY = height - padding + (height * 0.10); // Changed to 5%
+            const strengthLegendStartY = height - balancePadding + (height * 0.10); // Changed to 5%
             strengthCtx.font = 'bold 108px Arial'; // Increased from 72px
             strengthCtx.textAlign = 'left';
             strengthCtx.fillStyle = 'black';
-            strengthCtx.fillText('Legend:', padding, strengthLegendStartY);
+            strengthCtx.fillText('Legend:', balancePadding, strengthLegendStartY);
 
             // Legend explanation
             strengthCtx.font = 'bold 90px Arial';
-            const legendTextX = padding + 450; // Increased from 50 to prevent overlap
+            const legendTextX = balancePadding + 450; // Increased from 50 to prevent overlap
             strengthCtx.fillText('Values shown as: Balance (Against score, For score)', legendTextX, strengthLegendStartY);
 
             // Add personality colors next to the legend explanation
@@ -365,6 +365,108 @@ module.exports = {
                 this.logError("Failed to upload image:", uploadError.message);
                 throw uploadError;
             }
+
+            // =============================================
+            // Intensity DIAGRAM: Bias Intensity Comparison
+            // Bar chart showing bias intensity comparison
+            // =============================================
+
+            // Create intensity visualization with dynamic sizing
+            const canvasWidth = 2000; // Increased from 200
+            const minHeightPerBias = 100; // Increased from 10
+            const totalBiases = biasTypes.length;
+            const canvasHeight = totalBiases * minHeightPerBias;
+            
+            const intensityCanvas = createCanvas(canvasWidth, canvasHeight);
+            const intensityCtx = intensityCanvas.getContext('2d');
+            intensityCtx.fillStyle = '#ffffff';
+            intensityCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+            // Calculate dynamic sizes
+            const intensityChartPadding = Math.max(canvasWidth * 0.05, 50);
+            const titleHeight = Math.max(canvasHeight * 0.04, 40);
+            const intensityBarHeight = Math.max(canvasHeight * 0.01, 10);
+            const fontSize = Math.max(canvasHeight * 0.02, 30);
+            const smallFontSize = fontSize * 0.8;
+            const itemSpacing = (canvasHeight - titleHeight) / totalBiases;
+            const barWidth = canvasWidth - (intensityChartPadding * 2);
+
+            // Title - moved lower
+            intensityCtx.font = `bold ${fontSize * 1.2}px Arial`;
+            intensityCtx.fillStyle = '#000000';
+            intensityCtx.textAlign = 'center';
+            intensityCtx.fillText('Bias Intensity Analysis', canvasWidth/2, titleHeight);
+
+            biasTypes.forEach((biasType, index) => {
+                const y = titleHeight + (index * itemSpacing) + (itemSpacing/2);
+                const barStartX = intensityChartPadding;
+                const barCenterX = canvasWidth/2;
+                
+                // Find the maximum scores
+                const maxScores = biasStrengths
+                    .map(p => p.biases.find(b => b.type === biasType))
+                    .filter(b => b)
+                    .reduce((acc, bias) => ({
+                        forScore: Math.max(acc.forScore, bias.for_score || 0),
+                        againstScore: Math.max(acc.againstScore, bias.against_score || 0)
+                    }), { forScore: 0, againstScore: 0 });
+
+                const maxScore = Math.max(maxScores.forScore, maxScores.againstScore);
+                const isFor = maxScores.forScore >= maxScores.againstScore;
+                const filledWidth = (maxScore / 10) * barWidth;
+                
+                // Bias name (left aligned)
+                intensityCtx.font = `${fontSize}px Arial`;
+                intensityCtx.fillStyle = '#000000';
+                intensityCtx.textAlign = 'right';
+                intensityCtx.fillText(biasType, barCenterX - 50, y);
+
+                // Score (centered)
+                intensityCtx.textAlign = 'center';
+                const scoreText = maxScore.toString();
+                intensityCtx.fillText(scoreText, barCenterX, y);
+                
+                // For/Against (right aligned)
+                intensityCtx.font = `${smallFontSize}px Arial`;
+                intensityCtx.fillStyle = '#666666';
+                intensityCtx.textAlign = 'left';
+                intensityCtx.fillText(isFor ? 'For' : 'Against', barCenterX + 50, y);
+
+                // Progress bars
+                const cornerRadius = Math.max(intensityBarHeight/2, 1);
+                intensityCtx.fillStyle = '#f0f0f0';
+                roundedRect(intensityCtx, barStartX, y + intensityBarHeight, barWidth, intensityBarHeight, cornerRadius);
+
+                intensityCtx.fillStyle = '#4285f4';
+                roundedRect(intensityCtx, barStartX, y + intensityBarHeight, filledWidth, intensityBarHeight, cornerRadius);
+            });
+
+            // Helper function for rounded rectangles
+            function roundedRect(ctx, x, y, width, height, radius) {
+                ctx.beginPath();
+                ctx.moveTo(x + radius, y);
+                ctx.lineTo(x + width - radius, y);
+                ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+                ctx.lineTo(x + width, y + height - radius);
+                ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+                ctx.lineTo(x + radius, y + height);
+                ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+                ctx.lineTo(x, y + radius);
+                ctx.quadraticCurveTo(x, y, x + radius, y);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Convert canvas to buffer
+            const intensityBuffer = intensityCanvas.toBuffer('image/png');
+
+            // Upload intensity image
+            this.logInfo("Uploading intensity visualization..."); 
+            const intensityImageId = await spaceModule.putImage(intensityBuffer);
+            this.logInfo("Intensity image uploaded successfully. Image ID:", intensityImageId);
+
+
+            // =============================================
 
             // Create and save the document
             this.logProgress("Creating document object...");
@@ -400,6 +502,15 @@ module.exports = {
                 commands: {
                     image: {
                         id: imageId
+                    }
+                }
+            });
+
+            await documentModule.addParagraph(this.spaceId, documentId, visualChapterId, {
+                text: "Bias intensity analysis:",
+                commands: {
+                    image: {
+                        id: intensityImageId
                     }
                 }
             });
