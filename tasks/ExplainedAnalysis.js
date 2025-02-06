@@ -372,8 +372,8 @@ module.exports = {
             // =============================================
 
             // Create intensity visualization with dynamic sizing
-            const canvasWidth = 2000; // Increased from 200
-            const minHeightPerBias = 100; // Increased from 10
+            const canvasWidth = 2000;
+            const minHeightPerBias = 100;
             const totalBiases = biasTypes.length;
             const canvasHeight = totalBiases * minHeightPerBias;
             
@@ -385,7 +385,7 @@ module.exports = {
             // Calculate dynamic sizes
             const intensityChartPadding = Math.max(canvasWidth * 0.05, 50);
             const titleHeight = Math.max(canvasHeight * 0.04, 40);
-            const intensityBarHeight = Math.max(canvasHeight * 0.01, 10);
+            const intensityBarHeight = Math.max(canvasHeight * 0.01, 12);
             const fontSize = Math.max(canvasHeight * 0.02, 30);
             const smallFontSize = fontSize * 0.8;
             const itemSpacing = (canvasHeight - titleHeight) / totalBiases;
@@ -415,22 +415,51 @@ module.exports = {
                 const isFor = maxScores.forScore >= maxScores.againstScore;
                 const filledWidth = (maxScore / 10) * barWidth;
                 
-                // Bias name (left aligned)
+                // Bias name (left aligned at bar start)
                 intensityCtx.font = `${fontSize}px Arial`;
                 intensityCtx.fillStyle = '#000000';
-                intensityCtx.textAlign = 'right';
-                intensityCtx.fillText(biasType, barCenterX - 50, y);
+                intensityCtx.textAlign = 'left';
+                intensityCtx.fillText(biasType, barStartX, y);
 
-                // Score (centered)
+                // Score (centered, bold)
                 intensityCtx.textAlign = 'center';
                 const scoreText = maxScore.toString();
+                intensityCtx.font = `bold ${fontSize}px Arial`;
                 intensityCtx.fillText(scoreText, barCenterX, y);
                 
-                // For/Against (right aligned)
+                // For/Against (right aligned with the background)
                 intensityCtx.font = `${smallFontSize}px Arial`;
-                intensityCtx.fillStyle = '#666666';
+                const typeText = isFor ? 'For' : 'Against';
+                const textMetrics = intensityCtx.measureText(typeText);
+                const textHeight = fontSize * 0.8;
+                const padding = 8;
+                
+                // Colors for For/Against
+                const colors = isFor ? {
+                    bg: '#e3f2fd',    // Light blue
+                    text: '#1565c0'   // Darker blue
+                } : {
+                    bg: '#ffebee',    // Light red
+                    text: '#c62828'   // Darker red
+                };
+                
+                // Draw the background rectangle (moved up)
+                intensityCtx.fillStyle = colors.bg;
+                const rectX = barCenterX + 50 - padding;
+                const rectY = y - textHeight - padding; // Moved up more
+                roundedRect(
+                    intensityCtx, 
+                    rectX, 
+                    rectY,
+                    textMetrics.width + padding * 2,
+                    textHeight + padding,
+                    4
+                );
+                
+                // Draw the text in the appropriate color
+                intensityCtx.fillStyle = colors.text;
                 intensityCtx.textAlign = 'left';
-                intensityCtx.fillText(isFor ? 'For' : 'Against', barCenterX + 50, y);
+                intensityCtx.fillText(typeText, barCenterX + 50, y - padding/2); // Moved up to match rectangle
 
                 // Progress bars
                 const cornerRadius = Math.max(intensityBarHeight/2, 1);
