@@ -12,82 +12,29 @@ module.exports = {
 
             this.logInfo("Initializing bias explanation task...");
             const llmModule = await this.loadModule("llm");
-            const personalityModule = await this.loadModule("personality");
             const documentModule = await this.loadModule("document");
             const spaceModule = await this.loadModule("space");
 
-            // Validate and parse personality IDs
-            this.logProgress("Validating personality parameters...");
-            if (!this.parameters.personalities) {
-                throw new Error('No personalities provided');
-            }
-
-            this.logInfo("Raw parameters:", {
-                type: typeof this.parameters.personalities,
-                value: this.parameters.personalities
-            });
-
-            let personalityIds;
-            if (typeof this.parameters.personalities === 'string') {
-                // Try to split by comma first
-                if (this.parameters.personalities.includes(',')) {
-                    personalityIds = this.parameters.personalities.split(',').map(id => id.trim());
-                    this.logInfo("Split by comma into:", personalityIds);
-                } else {
-                    // If no comma, check if it's a concatenated string that needs to be split
-                    this.logInfo("Raw personality string:", this.parameters.personalities);
-                    // Split the string into chunks of 16 characters (assuming each ID is 16 chars)
-                    personalityIds = this.parameters.personalities.match(/.{16}/g) || [this.parameters.personalities];
-                    this.logInfo("Split into 16-char chunks:", personalityIds);
-                }
-            } else if (Array.isArray(this.parameters.personalities)) {
-                personalityIds = this.parameters.personalities;
-                this.logInfo("Using array directly:", personalityIds);
-            } else {
-                throw new Error('Invalid personalities parameter format');
-            }
-
-            this.logInfo("Final parsed personality IDs:", personalityIds);
-
             // Get personalities
-            this.logProgress("Fetching personality details...");
-            const personalities = await Promise.all(
-                personalityIds.map(async (personalityId) => {
-                    const personality = await personalityModule.getPersonality(this.spaceId, personalityId);
-                    if (!personality) {
-                        throw new Error(`Personality not found by ID: ${personalityId}`);
-                    }
-                    const personalityObj = await personalityModule.getPersonalityByName(this.spaceId, personality.name);
-                    if (!personalityObj) {
-                        throw new Error(`Personality not found by name: ${personality.name}`);
-                    }
-                    return personalityObj;
-                })
-            );
+            this.logProgress("Loading personality data...");
+            if (!this.parameters.personalities || !Array.isArray(this.parameters.personalities)) {
+                throw new Error('Invalid personality data provided');
+            }
+            const personalities = this.parameters.personalities;
+            this.logSuccess(`Loaded ${personalities.length} personalities: ${personalities.map(p => p.name).join(', ')}`);
 
-            this.logInfo("Successfully loaded personalities:", personalities.map(p => p.name));
-
-            // Load source document
-            this.logProgress("Loading source document...");
-            if (!this.parameters.sourceDocumentId) {
-                throw new Error('No source document ID provided');
+            // Load documents and their content
+            this.logProgress("Loading documents and their content...");
+            if (!this.parameters.biasAnalysis || !this.parameters.biasAnalysisContent) {
+                throw new Error('Invalid bias analysis document data provided');
             }
-            const sourceDocument = await documentModule.getDocument(this.spaceId, this.parameters.sourceDocumentId);
-            if (!sourceDocument) {
-                throw new Error('Source document not found');
+            if (!this.parameters.sourceDocumentContent) {
+                throw new Error('Invalid source document data provided');
             }
-            this.logSuccess("Source document loaded successfully");
-
-            // Load bias analysis document
-            this.logProgress("Loading bias analysis document...");
-            if (!this.parameters.bias_analysis) {
-                throw new Error('No bias analysis document ID provided');
-            }
-            const biasAnalysisDocument = await documentModule.getDocument(this.spaceId, this.parameters.bias_analysis);
-            if (!biasAnalysisDocument) {
-                throw new Error('Bias analysis document not found');
-            }
-            this.logSuccess("Bias analysis document loaded successfully");
+            const biasAnalysisDocument = this.parameters.biasAnalysis;
+            const biasAnalysisContent = this.parameters.biasAnalysisContent;
+            const sourceDocumentContent = this.parameters.sourceDocumentContent;
+            this.logSuccess("Successfully loaded all document properties");
 
             // Parse bias template to get number of biases
             const biasTemplateCount = (biasAnalysisDocument.chapters || []).length;
@@ -114,10 +61,10 @@ module.exports = {
                 - Description: ${personality.description}
                 
                 Text to analyze:
-                ${sourceDocument.content}
+                ${sourceDocumentContent}
                 
                 Using these bias types from the template:
-                ${biasAnalysisDocument.content}
+                ${biasAnalysisContent}
                 RESPONSE REQUIREMENTS:
                 1. You MUST analyze ALL ${biasTemplateCount} biases from the template
                 2. For each bias provide:
@@ -312,9 +259,6 @@ module.exports = {
                 }))
             }));
 
-            // Log biasStrengths to verify all biases are included
-            this.logInfo("Bias strengths for visualization:", biasStrengths);
-
             // Log biasTypes to verify all bias types are included
             this.logInfo("Bias types for visualization:", biasTypes);
 
@@ -409,9 +353,7 @@ module.exports = {
             });
 
             // Convert canvas to buffer
-            this.logInfo("Converting canvas to image buffer...");
             const buffer = strengthCanvas.toBuffer('image/png');
-            this.logInfo("Image buffer size:", buffer.length);
 
             // Upload image
             this.logInfo("Uploading image to AssistOS...");
@@ -434,7 +376,7 @@ module.exports = {
                 }, null, 2),
                 abstract: JSON.stringify({
                     type: "bias_explained",
-                    sourceDocumentId: this.parameters.sourceDocumentId,
+                    sourceDocument: this.parameters.sourceDocument,
                     personalities: personalities.map(p => p.name),
                     timestamp: new Date().toISOString()
                 }, null, 2),

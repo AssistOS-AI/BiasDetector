@@ -72,6 +72,27 @@ export class BiasDetectorExplainingModal {
             });
         }
     }
+    async extractDocumentContent(document) {
+        if (!document) return '';
+        if (document.content) return document.content;
+        if (document.chapters) {
+            return document.chapters
+                .map(chapter => {
+                    const texts = [];
+                    if (chapter.title) texts.push(`Chapter: ${chapter.title}`);
+                    if (chapter.paragraphs) {
+                        texts.push(chapter.paragraphs
+                            .filter(p => p && p.text)
+                            .map(p => p.text)
+                            .join('\n\n'));
+                    }
+                    return texts.filter(t => t && t.trim()).join('\n\n');
+                })
+                .filter(t => t && t.trim())
+                .join('\n\n');
+        }
+        return '';
+    }
 
     async handleExplanation(form) {
         try {
@@ -84,7 +105,7 @@ export class BiasDetectorExplainingModal {
                 const selectedPersonalities = Array.from(checkedBoxes).map(cb => cb.value);
                 const selectedDocument = form.querySelector('#document').value;
                 
-                console.log('Selected personalities (raw):', selectedPersonalities);
+                console.log('Selected personalities: ', selectedPersonalities);
                 if (!selectedPersonalities.length) {
                     return assistOS.UI.showApplicationError("Invalid form data", "Please select at least one personality", "error");
                 }
@@ -93,10 +114,34 @@ export class BiasDetectorExplainingModal {
                     return assistOS.UI.showApplicationError("Invalid form data", "Please select a document", "error");
                 }
 
+                console.log('biasAnalysisDoc ID:', this.documentId);
+                console.log('sourceDoc ID:', selectedDocument);
+
+                console.log('Getting document content...');
+                const biasAnalysisDoc = await documentModule.getDocument(assistOS.space.id, this.documentId);
+                const sourceDoc = await documentModule.getDocument(assistOS.space.id, selectedDocument);
+
+                const biasAnalysisContent = await this.extractDocumentContent(biasAnalysisDoc);
+                if (!biasAnalysisContent) {
+                    throw new Error('Could not extract text from biasAnalysisDoc');
+                }
+                const sourceDocContent = await this.extractDocumentContent(sourceDoc);
+                if (!sourceDocContent) {
+                    throw new Error('Could not extract text from sourceDoc');
+                }
+
+                // Get personality details
+                const personalityDetails = await Promise.all(
+                    selectedPersonalities.map(id => 
+                        personalityModule.getPersonality(assistOS.space.id, id)
+                    )
+                );
+
                 const taskData = {
-                    personalities: selectedPersonalities,
-                    bias_analysis: this.documentId, // This is the original bias analysis document
-                    sourceDocumentId: selectedDocument // This is the document selected from dropdown
+                    personalities: personalityDetails,
+                    biasAnalysis: biasAnalysisDoc,
+                    biasAnalysisContent: biasAnalysisContent,
+                    sourceDocumentContent: sourceDocContent
                 };
 
                 console.log('Running application task with data:', taskData);
