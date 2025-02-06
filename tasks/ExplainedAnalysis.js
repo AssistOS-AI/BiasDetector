@@ -67,22 +67,34 @@ module.exports = {
 
             this.logInfo("Successfully loaded personalities:", personalities.map(p => p.name));
 
-            // Get source document
-            const sourceDoc = await documentModule.getDocument(this.spaceId, this.parameters.sourceDocumentId);
-            if (!sourceDoc) {
+            // Load source document
+            this.logProgress("Loading source document...");
+            if (!this.parameters.sourceDocumentId) {
+                throw new Error('No source document ID provided');
+            }
+            const sourceDocument = await documentModule.getDocument(this.spaceId, this.parameters.sourceDocumentId);
+            if (!sourceDocument) {
                 throw new Error('Source document not found');
             }
+            this.logSuccess("Source document loaded successfully");
 
-            // Extract paragraphs and their biases from chapters
-            let biasAnalyses = [];
-            for (let i = 0; i < sourceDoc.chapters.length; i++) {
-                const chapter = sourceDoc.chapters[i];
-                if (chapter.paragraphs && chapter.paragraphs[0]) {
-                    biasAnalyses.push({
-                        bias_type: chapter.title,
-                        text: chapter.paragraphs[0].text
-                    });
-                }
+            // Load bias analysis document
+            this.logProgress("Loading bias analysis document...");
+            if (!this.parameters.bias_analysis) {
+                throw new Error('No bias analysis document ID provided');
+            }
+            const biasAnalysisDocument = await documentModule.getDocument(this.spaceId, this.parameters.bias_analysis);
+            if (!biasAnalysisDocument) {
+                throw new Error('Bias analysis document not found');
+            }
+            this.logSuccess("Bias analysis document loaded successfully");
+
+            // Parse bias template to get number of biases
+            const biasTemplateCount = (biasAnalysisDocument.chapters || []).length;
+            this.logInfo(`Found ${biasTemplateCount} biases in template`);
+
+            if (biasTemplateCount === 0) {
+                throw new Error('No biases found in template document');
             }
 
             // Generate scores and explanations for each personality
@@ -95,27 +107,33 @@ module.exports = {
                 let explanations;
 
                 let explanationPrompt = `
-                As ${personality.name} (${personality.description}), analyze each bias explanation and provide:
-                1. Two scores from ${MIN_SCORE} to ${MAX_SCORE}:
-                   - A score indicating your level of support or agreement with this bias
-                   - A score indicating your level of opposition or disagreement with this bias
+                You are a bias analysis expert. I need you to analyze a text for specific biases and return ONLY a JSON response.
+                TASK:
+                Analyze the text below from the perspective of this personality:
+                - Name: ${personality.name}
+                - Description: ${personality.description}
+                
+                Text to analyze:
+                ${sourceDocument.content}
+                
+                Using these bias types from the template:
+                ${biasAnalysisDocument.content}
+                RESPONSE REQUIREMENTS:
+                1. You MUST analyze ALL ${biasTemplateCount} biases from the template
+                2. For each bias provide:
+                   - A score indicating your level of support or agreement with this bias. for_score: number ${MIN_SCORE}-${MAX_SCORE}
+                   - A score indicating your level of opposition or disagreement with this bias. against_score: number ${MIN_SCORE}-${MAX_SCORE}
+                   - bias_type: exact name from template
                 2. A detailed explanation (${MIN_WORDS}-${MAX_WORDS} words) of why you assigned these scores
 
-                For each bias, consider:
-                - The significance of the bias in the context
-                - The potential impact on readers or decision-making
-                - The subtlety or obviousness of the bias
-                - The broader implications of this type of bias
-
-                You MUST analyze ALL ${biasAnalyses.length} biases provided below.
+                You MUST analyze ALL ${biasTemplateCount} biases provided below.
                 Each bias MUST have both scores.
 
-                Biases to analyze (${biasAnalyses.length} total):
-                ${JSON.stringify(biasAnalyses, null, 2)}
+                Biases to analyze (${biasTemplateCount} total)
 
                 CRITICAL JSON FORMATTING REQUIREMENTS:
                 1. Your response MUST be PURE JSON - no markdown, no backticks, no extra text
-                2. You MUST analyze exactly ${biasAnalyses.length} biases, no more, no less
+                2. You MUST analyze exactly ${biasTemplateCount} biases, no more, no less
                 3. Each bias MUST have both for_score and against_score
                 4. Keep explanations concise (${MIN_WORDS}-${MAX_WORDS} words) to avoid truncation
                 5. Follow this exact structure and DO NOT deviate from it:
@@ -184,7 +202,7 @@ module.exports = {
                                 has_scored_biases: !!explanations.scored_biases,
                                 is_array: Array.isArray(explanations.scored_biases),
                                 length: explanations.scored_biases?.length,
-                                expected_length: biasAnalyses.length
+                                expected_length: biasTemplateCount
                             });
 
                             // Validate the structure
@@ -192,8 +210,8 @@ module.exports = {
                                 throw new Error('Invalid response format: scored_biases array is missing or not an array');
                             }
 
-                            if (explanations.scored_biases.length !== biasAnalyses.length) {
-                                throw new Error(`Invalid response format: Expected ${biasAnalyses.length} explanations, got ${explanations.scored_biases.length}`);
+                            if (explanations.scored_biases.length !== biasTemplateCount) {
+                                throw new Error(`Invalid response format: Expected ${biasTemplateCount} explanations, got ${explanations.scored_biases.length}`);
                             }
 
                             // Validate each explanation
@@ -233,7 +251,7 @@ module.exports = {
                         explanationPrompt += `\n\nPrevious attempt failed with error: ${errorMessage}
                         Please ensure your response:
                         1. Is valid JSON
-                        2. Contains EXACTLY ${biasAnalyses.length} scored_biases (you provided wrong number)
+                        2. Contains EXACTLY ${biasTemplateCount} scored_biases (you provided wrong number)
                         3. Each bias has both for_score and against_score between ${MIN_SCORE} and ${MAX_SCORE}
                         4. Each explanation is a single clean paragraph
                         5. No special characters or line breaks in text
@@ -341,14 +359,14 @@ module.exports = {
                         // Add scores on both sides
                         strengthCtx.fillStyle = 'black';
 
-                        // Against score on left side
+                        // Against score on the left side
                         strengthCtx.textAlign = 'right';
                         strengthCtx.font = 'bold 90px Arial'; // Increased from 60px
                         strengthCtx.fillText(`-${bias.against_score}`,
                             centerLineX - againstWidth - 15, // Adjusted spacing
                             y + yOffset + (barHeight/2) + 35);
 
-                        // For score on right side
+                        // For score on the right side
                         strengthCtx.textAlign = 'left';
                         strengthCtx.fillText(`${bias.for_score}`,
                             centerLineX + forWidth + 15, // Adjusted spacing

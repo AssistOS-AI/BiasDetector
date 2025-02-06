@@ -1,5 +1,6 @@
 const applicationModule = require('assistos').loadModule('application', {});
 const personalityModule = require('assistos').loadModule('personality', {});
+const documentModule = require('assistos').loadModule('document', {});
 
 export class BiasDetectorExplainingModal {
     constructor(element, invalidate) {
@@ -7,6 +8,8 @@ export class BiasDetectorExplainingModal {
         this.invalidate = invalidate;
         this.personalities = [];
         this.personalityOptions = [];
+        this.documents = [];
+        this.documentOptions = [];
         this.documentId = this.element.getAttribute("data-documentId");
         this.invalidate();
     }
@@ -22,9 +25,19 @@ export class BiasDetectorExplainingModal {
                     ${personality.name}
                 </label>`
             ).join('');
+
+            // Load documents from AssistOS
+            const documents = await documentModule.getDocumentsMetadata(assistOS.space.id);
+            console.log('Number of documents:', documents.length);
+            this.documents = documents;
+            this.documentOptions = documents.map(doc => {
+                const title = doc.title || doc.name || doc.id;
+                return `<option value="${doc.id}">${title}</option>`;
+            }).join('');
         } catch (error) {
-            console.error('Error loading personalities:', error);
+            console.error('Error loading data:', error);
             this.personalityOptions = [];
+            this.documentOptions = [];
         }
     }
 
@@ -69,15 +82,21 @@ export class BiasDetectorExplainingModal {
                 // Get all checked checkboxes directly
                 const checkedBoxes = form.querySelectorAll('input[name="personalities"]:checked');
                 const selectedPersonalities = Array.from(checkedBoxes).map(cb => cb.value);
+                const selectedDocument = form.querySelector('#document').value;
                 
                 console.log('Selected personalities (raw):', selectedPersonalities);
                 if (!selectedPersonalities.length) {
                     return assistOS.UI.showApplicationError("Invalid form data", "Please select at least one personality", "error");
                 }
 
+                if (!selectedDocument) {
+                    return assistOS.UI.showApplicationError("Invalid form data", "Please select a document", "error");
+                }
+
                 const taskData = {
                     personalities: selectedPersonalities,
-                    sourceDocumentId: this.documentId
+                    bias_analysis: this.documentId, // This is the original bias analysis document
+                    sourceDocumentId: selectedDocument // This is the document selected from dropdown
                 };
 
                 console.log('Running application task with data:', taskData);

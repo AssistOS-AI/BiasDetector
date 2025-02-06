@@ -13,6 +13,17 @@
                 </div>
             </div>
 
+            <div class="form-group">
+                <label>Source Selection</label>
+                <div class="input-wrapper">
+                    <select id="document" name="document" data-id="document" required>
+                        <option value="">Select a document...</option>
+                        $$documentOptions
+                    </select>
+                    <div class="input-info">Choose an existing document to analyze</div>
+                </div>
+            </div>
+
             <div class="form-actions">
                 <button type="submit" class="primary-button" id="explainButton">
                     <span class="button-icon">📝</span>
