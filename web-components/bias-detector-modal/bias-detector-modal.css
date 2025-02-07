@@ -176,6 +176,60 @@ textarea {
     border: 0;
 }
 
+[theme="dark"] .modal-content {
+    background: #2d2d2d;
+    border-color: #404040;
+}
+
+[theme="dark"] .close-button {
+    background: #333333;
+    color: #f8f9fa;
+}
+
+[theme="dark"] .close-button:hover {
+    background: #404040;
+}
+
+[theme="dark"] label {
+    color: #f8f9fa;
+}
+
+[theme="dark"] .source-option {
+    background: #333333;
+    border-color: #404040;
+    color: #f8f9fa;
+}
+
+[theme="dark"] .source-option.active {
+    background: #2d2d2d;
+    border-color: #4299e1;
+}
+
+[theme="dark"] select,
+[theme="dark"] input,
+[theme="dark"] textarea {
+    background: #333333;
+    border-color: #404040;
+    color: #f8f9fa;
+}
+
+[theme="dark"] select:hover,
+[theme="dark"] input:hover,
+[theme="dark"] textarea:hover {
+    border-color: #555555;
+}
+
+[theme="dark"] select:focus,
+[theme="dark"] input:focus,
+[theme="dark"] textarea:focus {
+    border-color: #4299e1;
+    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
+}
+
+[theme="dark"] .input-info {
+    color: #a0aec0;
+}
+
 @media (max-width: 768px) {
     .modal-content {
         margin: 1rem;
@@ -185,4 +239,4 @@ textarea {
     h1 {
         font-size: 2rem;
     }
-} 
+}

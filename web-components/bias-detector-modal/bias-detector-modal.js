@@ -7,6 +7,7 @@ export class BiasDetectorModal {
         this.element = element;
         this.invalidate = invalidate;
         this.documents = [];
+        this.currentTheme = localStorage.getItem('theme') || 'light';
         this.invalidate();
     }
 
@@ -39,6 +40,7 @@ export class BiasDetectorModal {
     async afterRender() {
         this.setupEventListeners();
         this.setupSourceToggle();
+        document.addEventListener('themechange', this.handleThemeChange.bind(this));
     }
 
     async closeModal(_target, taskId) {
@@ -156,5 +158,10 @@ export class BiasDetectorModal {
             console.error('Error in handleAnalysis:', error);
             assistOS.UI.showApplicationError("Analysis Error", error.message, "error");
         }
+    }
+
+    handleThemeChange() {
+        this.currentTheme = document.documentElement.getAttribute('theme') || 'light';
+        this.invalidate();
     }
 } 

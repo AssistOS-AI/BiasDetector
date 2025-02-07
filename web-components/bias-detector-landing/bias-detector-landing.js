@@ -9,6 +9,7 @@ export class BiasDetectorLanding {
         this.invalidate = invalidate;
         this.documents = [];
         this.explainedDocuments = [];
+        this.currentTheme = localStorage.getItem('theme') || 'light';
         this.refreshDocuments = async () => {
             const documentsMetadata = await assistOS.space.getDocumentsMetadata(assistOS.space.id);
 
@@ -193,6 +194,12 @@ export class BiasDetectorLanding {
                 });
             }
         });
+        document.addEventListener('themechange', this.handleThemeChange.bind(this));
+    }
+
+    handleThemeChange() {
+        this.currentTheme = document.documentElement.getAttribute('theme') || 'light';
+        this.invalidate();
     }
 
     async editAction(_target) {

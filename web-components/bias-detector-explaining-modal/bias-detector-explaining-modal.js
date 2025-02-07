@@ -11,6 +11,7 @@ export class BiasDetectorExplainingModal {
         this.documents = [];
         this.documentOptions = [];
         this.documentId = this.element.getAttribute("data-documentId");
+        this.currentTheme = localStorage.getItem('theme') || 'light';
         this.invalidate();
     }
 
@@ -43,6 +44,7 @@ export class BiasDetectorExplainingModal {
 
     async afterRender() {
         this.setupEventListeners();
+        document.addEventListener('themechange', this.handleThemeChange.bind(this));
     }
 
     async closeModal(_target, taskId) {
@@ -72,6 +74,7 @@ export class BiasDetectorExplainingModal {
             });
         }
     }
+
     async extractDocumentContent(document) {
         if (!document) return '';
         if (document.content) return document.content;
@@ -158,6 +161,11 @@ export class BiasDetectorExplainingModal {
             console.error('Error in handleExplanation:', error);
             assistOS.UI.showApplicationError("Error", error.message || "Failed to generate explanation", "error");
         }
+    }
+
+    handleThemeChange() {
+        this.currentTheme = document.documentElement.getAttribute('theme') || 'light';
+        this.invalidate();
     }
 
     setDocumentId(documentId) {
