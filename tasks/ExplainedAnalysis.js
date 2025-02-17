@@ -244,11 +244,19 @@ module.exports = {
             const bottomPadding = Math.floor(balanceCanvasHeight * 0.005); // 0.5% from bottom
             const leftPadding = Math.floor(balanceCanvasWidth * 0.01); // 1% from left for bias names
 
-            // Define font sizes
-            const titleFontSize = Math.floor(balanceCanvasHeight * 0.02); // 2%
-            const biasNameFontSize = Math.floor(balanceCanvasHeight * 0.015); // 1.5%
-            const scoresFontSize = Math.floor(balanceCanvasHeight * 0.02); // 2%
-            const legendFontSize = Math.floor(balanceCanvasHeight * 0.02); // 2%
+            // Calculate scaling factors based on number of personalities
+            const baseScale = 1.0; // Start from 1 for bars and scores
+            const scaleFactor = Math.max(0.5, baseScale - ((allPersonalityExplanations.length - 1) * 0.1)); // Decrease by 0.1 for each additional personality, min 0.5
+            
+            // Use the same scaling for personalities
+            const personalityScaleFactor = scaleFactor; // Same scaling for personalities
+
+            // Define font sizes with scaling
+            const titleFontSize = Math.floor(balanceCanvasHeight * 0.02); // Keep title size constant
+            const biasNameFontSize = Math.floor(balanceCanvasHeight * 0.015); // Keep bias name size constant
+            const scoresFontSize = Math.floor(balanceCanvasHeight * 0.02 * scaleFactor); // Scale scores
+            const legendFontSize = Math.floor(balanceCanvasHeight * 0.02); // Keep legend size constant
+            const personalityFontSize = Math.floor(balanceCanvasHeight * 0.02 * personalityScaleFactor); // Scale personality text with same factor
 
             // Create and setup canvas
             const strengthCanvas = createCanvas(balanceCanvasWidth, balanceCanvasHeight);
@@ -265,22 +273,22 @@ module.exports = {
             strengthCtx.fillText('Bias Score Distribution', balanceCanvasWidth / 2, topPadding + titleFontSize);
 
             // Draw personality colors under title
-            const personalityY = topPadding + titleFontSize + legendFontSize + 5;
+            const personalityY = topPadding + titleFontSize + (legendFontSize * 1.2) + 5;
             const personalitySpacing = Math.floor(balanceCanvasWidth / (allPersonalityExplanations.length + 1));
             allPersonalityExplanations.forEach((personality, index) => {
                 const x = leftPadding + (personalitySpacing * (index + 1));
                 strengthCtx.fillStyle = colors[index];
                 strengthCtx.beginPath();
-                strengthCtx.arc(x - 40, personalityY, Math.floor(balanceCanvasHeight * 0.01), 0, 2 * Math.PI);
+                strengthCtx.arc(x - 40, personalityY, Math.floor(balanceCanvasHeight * 0.01 * personalityScaleFactor), 0, 2 * Math.PI);
                 strengthCtx.fill();
                 strengthCtx.fillStyle = 'black';
-                strengthCtx.font = `${legendFontSize}px Arial`;
+                strengthCtx.font = `${personalityFontSize}px Arial`; // Use personality scaled font size
                 strengthCtx.textAlign = 'left';
-                strengthCtx.fillText(personality.personality, x, personalityY + 5);
+                strengthCtx.fillText(personality.personality, x - 30, personalityY + (personalityFontSize/3));
             });
 
             // Calculate spaces - ensure we stay within canvas
-            const headerHeight = personalityY + legendFontSize + 10; // Space for title and personalities
+            const headerHeight = personalityY + (legendFontSize * 1.2) + 10; // Space for title and personalities
             const footerHeight = legendFontSize + bottomPadding; // Space for legend text at bottom
             const availableHeight = balanceCanvasHeight - headerHeight - footerHeight;
             const frameHeight = availableHeight / biasTypes.length;
@@ -330,9 +338,10 @@ module.exports = {
                 });
 
                 // Calculate bar dimensions
-                const biasLabelWidth = Math.floor(balanceCanvasWidth * 0.2); // Fixed 20% width for bias labels
+                const biasLabelWidth = Math.floor(balanceCanvasWidth * 0.2);
                 const maxBarWidth = (balanceCanvasWidth / 2) - leftPadding - biasLabelWidth - Math.floor(balanceCanvasHeight * 0.01);
-                const barHeight = Math.floor(frameHeight * 0.2);
+                // Scale bar height based on number of personalities
+                const barHeight = Math.floor(frameHeight * 0.2 * scaleFactor);
 
                 // Calculate bar positions for multiple personalities
                 allPersonalityExplanations.forEach((personality, pIndex) => {
@@ -352,7 +361,7 @@ module.exports = {
                         const forWidth = (bias.for_score / 10) * maxBarWidth;
                         strengthCtx.fillRect(centerX, barY, forWidth, barHeight);
 
-                        // Draw score values centered to their bars
+                        // Draw score values centered to their bars with scaled font
                         strengthCtx.font = `${scoresFontSize}px Arial`;
                         strengthCtx.fillStyle = 'black';
                         strengthCtx.textAlign = 'right';
@@ -370,19 +379,19 @@ module.exports = {
             strengthCtx.fillText('Against Score', balanceCanvasWidth * 0.25, balanceCanvasHeight - bottomPadding);
             strengthCtx.fillText('For Score', balanceCanvasWidth * 0.75, balanceCanvasHeight - bottomPadding);
 
-            // Draw personality colors under title with 2% font size
-            const balancePersonalityY = topPadding + titleFontSize + legendFontSize + 5;
+            // Draw personality colors under title with scaled font size
+            const balancePersonalityY = topPadding + titleFontSize + (legendFontSize * 1.2) + 5;
             const balancePersonalitySpacing = Math.floor(balanceCanvasWidth / (allPersonalityExplanations.length + 1));
             allPersonalityExplanations.forEach((personality, index) => {
                 const x = leftPadding + (balancePersonalitySpacing * (index + 1));
                 strengthCtx.fillStyle = colors[index];
                 strengthCtx.beginPath();
-                strengthCtx.arc(x - 40, balancePersonalityY, Math.floor(balanceCanvasHeight * 0.01), 0, 2 * Math.PI);
+                strengthCtx.arc(x - 40, balancePersonalityY, Math.floor(balanceCanvasHeight * 0.01 * personalityScaleFactor), 0, 2 * Math.PI);
                 strengthCtx.fill();
                 strengthCtx.fillStyle = 'black';
-                strengthCtx.font = `${legendFontSize}px Arial`;
+                strengthCtx.font = `${personalityFontSize}px Arial`; // Use scaled font size for personality text
                 strengthCtx.textAlign = 'left';
-                strengthCtx.fillText(personality.personality, x, balancePersonalityY + 5);
+                strengthCtx.fillText(personality.personality, x - 30, balancePersonalityY + (personalityFontSize/3));
             });
 
             // Convert canvas to buffer
@@ -539,10 +548,10 @@ module.exports = {
                 const x = legendSpacing * (index + 1);
                 againstCtx.fillStyle = colors[index];
                 againstCtx.beginPath();
-                againstCtx.arc(x - 40, legendY, Math.floor(canvasHeight * 0.015), 0, 2 * Math.PI);
+                againstCtx.arc(x - 40, legendY, Math.floor(canvasHeight * 0.015 * personalityScaleFactor), 0, 2 * Math.PI);
                 againstCtx.fill();
                 againstCtx.fillStyle = 'black';
-                againstCtx.font = `${Math.floor(canvasHeight * 0.03)}px Arial`;
+                againstCtx.font = `${Math.floor(canvasHeight * 0.03 * personalityScaleFactor)}px Arial`;
                 againstCtx.textAlign = 'left';
                 againstCtx.fillText(personality.personality, x - 20, legendY + 5);
             });
@@ -664,10 +673,10 @@ module.exports = {
                 const x = legendSpacingFor * (index + 1);
                 forCtx.fillStyle = colors[index];
                 forCtx.beginPath();
-                forCtx.arc(x - 40, legendYFor, Math.floor(canvasHeight * 0.015), 0, 2 * Math.PI);
+                forCtx.arc(x - 40, legendYFor, Math.floor(canvasHeight * 0.015 * personalityScaleFactor), 0, 2 * Math.PI);
                 forCtx.fill();
                 forCtx.fillStyle = 'black';
-                forCtx.font = `${Math.floor(canvasHeight * 0.03)}px Arial`;
+                forCtx.font = `${Math.floor(canvasHeight * 0.03 * personalityScaleFactor)}px Arial`;
                 forCtx.textAlign = 'left';
                 forCtx.fillText(personality.personality, x - 20, legendYFor + 5);
             });
