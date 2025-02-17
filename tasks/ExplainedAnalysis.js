@@ -8,7 +8,18 @@ module.exports = {
             const MAX_WORDS = 100;
 
             // Define colors for personalities
-            const colors = ['rgb(54, 162, 235)', 'rgb(255, 99, 132)', 'rgb(75, 192, 192)'];
+            const colors = [
+                'rgb(54, 162, 235)',  // Blue
+                'rgb(255, 99, 132)',  // Red
+                'rgb(75, 192, 192)',  // Teal
+                'rgb(153, 102, 255)', // Purple
+                'rgb(255, 159, 64)',  // Orange
+                'rgb(255, 205, 86)',  // Yellow
+                'rgb(201, 203, 207)', // Gray
+                'rgb(0, 128, 0)',     // Green
+                'rgb(128, 0, 128)',   // Dark Purple
+                'rgb(0, 0, 128)'      // Navy
+            ];
 
             this.logInfo("Initializing bias explanation task...");
             const llmModule = await this.loadModule("llm");
@@ -75,8 +86,6 @@ module.exports = {
 
                 You MUST analyze ALL ${biasTemplateCount} biases provided below.
                 Each bias MUST have both scores.
-
-                Biases to analyze (${biasTemplateCount} total)
 
                 CRITICAL JSON FORMATTING REQUIREMENTS:
                 1. Your response MUST be PURE JSON - no markdown, no backticks, no extra text
@@ -221,64 +230,118 @@ module.exports = {
             // Create visualization data
             this.logProgress("Creating visualization data...");
 
-            const canvasWidth = 3600;
-            const canvasHeight = 3600;
+            // Load canvas using require
+            const { createCanvas } = require('canvas');
+
+            // Get unique bias types from the first personality's biases
+            const biasTypes = [...new Set(allPersonalityExplanations[0].scored_biases.map(b => b.bias_type))];
+
+            const balanceCanvasWidth = 1200;
+            const balanceCanvasHeight = 1200;
 
             // Calculate percentage-based measurements
-            const topPadding = Math.floor(canvasHeight * 0.02); // 2% from top
-            const bottomPadding = Math.floor(canvasHeight * 0.03); // 3% from bottom for legend
-            const leftPadding = Math.floor(canvasWidth * 0.02); // 2% from left
-            const rightPadding = Math.floor(canvasWidth * 0.02); // 2% from right
+            const topPadding = Math.floor(balanceCanvasHeight * 0.005); // 0.5% from top
+            const bottomPadding = Math.floor(balanceCanvasHeight * 0.005); // 0.5% from bottom
+            const leftPadding = Math.floor(balanceCanvasWidth * 0.01); // 1% from left for bias names
 
-            // Create canvas
-            const strengthCanvas = createCanvas(canvasWidth, canvasHeight);
+            // Define font sizes
+            const titleFontSize = Math.floor(balanceCanvasHeight * 0.02); // 2%
+            const biasNameFontSize = Math.floor(balanceCanvasHeight * 0.015); // 1.5%
+            const scoresFontSize = Math.floor(balanceCanvasHeight * 0.02); // 2%
+            const legendFontSize = Math.floor(balanceCanvasHeight * 0.02); // 2%
+
+            // Create and setup canvas
+            const strengthCanvas = createCanvas(balanceCanvasWidth, balanceCanvasHeight);
             const strengthCtx = strengthCanvas.getContext('2d');
 
             // Set white background
             strengthCtx.fillStyle = 'white';
-            strengthCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+            strengthCtx.fillRect(0, 0, balanceCanvasWidth, balanceCanvasHeight);
 
-            // Draw title at 2% from top
-            strengthCtx.font = `bold ${Math.floor(canvasHeight * 0.03)}px Arial`;
-            strengthCtx.textAlign = 'center';
+            // Draw title at 0.5% from top
+            strengthCtx.font = `${titleFontSize}px Arial`;
             strengthCtx.fillStyle = 'black';
-            strengthCtx.fillText('Bias Balance Comparison', canvasWidth/2, topPadding + Math.floor(canvasHeight * 0.02));
+            strengthCtx.textAlign = 'center';
+            strengthCtx.fillText('Bias Score Distribution', balanceCanvasWidth / 2, topPadding + titleFontSize);
 
-            // Calculate frame dimensions
-            const frameArea = canvasHeight - topPadding - bottomPadding;
-            const frameHeight = Math.floor(frameArea / biasTypes.length);
-            const frameWidth = canvasWidth - leftPadding - rightPadding;
+            // Draw personality colors under title
+            const personalityY = topPadding + titleFontSize + legendFontSize + 5;
+            const personalitySpacing = Math.floor(balanceCanvasWidth / (allPersonalityExplanations.length + 1));
+            allPersonalityExplanations.forEach((personality, index) => {
+                const x = leftPadding + (personalitySpacing * (index + 1));
+                strengthCtx.fillStyle = colors[index];
+                strengthCtx.beginPath();
+                strengthCtx.arc(x - 40, personalityY, Math.floor(balanceCanvasHeight * 0.01), 0, 2 * Math.PI);
+                strengthCtx.fill();
+                strengthCtx.fillStyle = 'black';
+                strengthCtx.font = `${legendFontSize}px Arial`;
+                strengthCtx.textAlign = 'left';
+                strengthCtx.fillText(personality.personality, x, personalityY + 5);
+            });
 
-            // Calculate center line position (0 axis)
-            const centerX = canvasWidth / 2;
+            // Calculate spaces - ensure we stay within canvas
+            const headerHeight = personalityY + legendFontSize + 10; // Space for title and personalities
+            const footerHeight = legendFontSize + bottomPadding; // Space for legend text at bottom
+            const availableHeight = balanceCanvasHeight - headerHeight - footerHeight;
+            const frameHeight = availableHeight / biasTypes.length;
 
-            // Draw frames and bias information
+            // Draw frames for each bias type
             biasTypes.forEach((biasType, index) => {
-                const frameY = topPadding + (index * frameHeight);
+                const frameY = headerHeight + (index * frameHeight);
+                const centerX = balanceCanvasWidth / 2;
 
                 // Draw alternating background
                 strengthCtx.fillStyle = index % 2 === 0 ? '#f0f0f0' : '#ffffff';
-                strengthCtx.fillRect(leftPadding, frameY, frameWidth, frameHeight);
+                strengthCtx.fillRect(0, frameY, balanceCanvasWidth, frameHeight);
 
-                // Draw bias name (2% from left, vertically centered in frame)
+                // Draw center line
+                strengthCtx.strokeStyle = '#000000';
+                strengthCtx.beginPath();
+                strengthCtx.moveTo(centerX, frameY);
+                strengthCtx.lineTo(centerX, frameY + frameHeight);
+                strengthCtx.stroke();
+
+                // Draw bias name at 1% from left with bias name font size
+                strengthCtx.font = `${biasNameFontSize}px Arial`;
                 strengthCtx.fillStyle = 'black';
                 strengthCtx.textAlign = 'left';
-                strengthCtx.font = `${Math.floor(canvasHeight * 0.02)}px Arial`;
-                const textY = frameY + (frameHeight / 2);
-                strengthCtx.fillText(biasType, leftPadding, textY);
+
+                // Split bias name into lines of max 2 words
+                function splitIntoLines(text) {
+                    const words = text.split(' ');
+                    const lines = [];
+                    for (let i = 0; i < words.length; i += 2) {
+                        if (i + 1 < words.length) {
+                            lines.push(words[i] + ' ' + words[i + 1]);
+                        } else {
+                            lines.push(words[i]);
+                        }
+                    }
+                    return lines;
+                }
+
+                const lines = splitIntoLines(biasType);
+                const lineHeight = biasNameFontSize * 1.2; // Add some spacing between lines
+                const totalTextHeight = lineHeight * lines.length;
+                const textStartY = frameY + (frameHeight - totalTextHeight) / 2 + biasNameFontSize; // Center text block in frame
+
+                lines.forEach((line, index) => {
+                    strengthCtx.fillText(line, leftPadding, textStartY + (index * lineHeight));
+                });
 
                 // Calculate bar dimensions
-                const maxBarWidth = (frameWidth - leftPadding) / 2; // Half of remaining width for each side
-                const barHeight = Math.floor(frameHeight * 0.4); // 40% of frame height
+                const biasLabelWidth = Math.floor(balanceCanvasWidth * 0.2); // Fixed 20% width for bias labels
+                const maxBarWidth = (balanceCanvasWidth / 2) - leftPadding - biasLabelWidth - Math.floor(balanceCanvasHeight * 0.01);
+                const barHeight = Math.floor(frameHeight * 0.2);
 
                 // Calculate bar positions for multiple personalities
                 allPersonalityExplanations.forEach((personality, pIndex) => {
                     const bias = personality.scored_biases.find(b => b.bias_type === biasType);
                     if (bias) {
-                        // Calculate vertical position to center bars
+                        // Calculate vertical position to center bars as a group
                         const totalBarSpace = barHeight * allPersonalityExplanations.length;
-                        const startY = frameY + (frameHeight - totalBarSpace) / 2;
-                        const barY = startY + (pIndex * barHeight);
+                        const gapBetweenBars = (frameHeight - totalBarSpace) / (allPersonalityExplanations.length + 1);
+                        const barY = frameY + gapBetweenBars + (pIndex * (barHeight + gapBetweenBars));
 
                         // Draw against score (left side)
                         const againstWidth = (bias.against_score / 10) * maxBarWidth;
@@ -289,39 +352,37 @@ module.exports = {
                         const forWidth = (bias.for_score / 10) * maxBarWidth;
                         strengthCtx.fillRect(centerX, barY, forWidth, barHeight);
 
-                        // Draw score values
+                        // Draw score values centered to their bars
+                        strengthCtx.font = `${scoresFontSize}px Arial`;
                         strengthCtx.fillStyle = 'black';
                         strengthCtx.textAlign = 'right';
-                        strengthCtx.fillText(-bias.against_score, centerX - againstWidth - 5, barY + barHeight/2);
+                        strengthCtx.fillText(-bias.against_score, centerX - againstWidth - 5, barY + (barHeight/2) + (scoresFontSize/3));
                         strengthCtx.textAlign = 'left';
-                        strengthCtx.fillText(bias.for_score, centerX + forWidth + 5, barY + barHeight/2);
+                        strengthCtx.fillText(bias.for_score, centerX + forWidth + 5, barY + (barHeight/2) + (scoresFontSize/3));
                     }
                 });
             });
 
-            // Draw center line
-            strengthCtx.beginPath();
-            strengthCtx.strokeStyle = 'black';
-            strengthCtx.moveTo(centerX, topPadding);
-            strengthCtx.lineTo(centerX, canvasHeight - bottomPadding);
-            strengthCtx.stroke();
-
-            // Draw legend at bottom (3% from bottom)
-            const legendY = canvasHeight - bottomPadding;
+            // Draw "Against Score" and "For Score" at bottom with 2% font size
+            strengthCtx.font = `${legendFontSize}px Arial`;
             strengthCtx.fillStyle = 'black';
-            strengthCtx.textAlign = 'left';
-            strengthCtx.fillText('Legend: Values shown as: Balance (Against score, For score)', leftPadding, legendY);
+            strengthCtx.textAlign = 'center';
+            strengthCtx.fillText('Against Score', balanceCanvasWidth * 0.25, balanceCanvasHeight - bottomPadding);
+            strengthCtx.fillText('For Score', balanceCanvasWidth * 0.75, balanceCanvasHeight - bottomPadding);
 
-            // Draw personality colors in legend
-            const legendSpacing = Math.floor(frameWidth / (allPersonalityExplanations.length + 1));
+            // Draw personality colors under title with 2% font size
+            const balancePersonalityY = topPadding + titleFontSize + legendFontSize + 5;
+            const balancePersonalitySpacing = Math.floor(balanceCanvasWidth / (allPersonalityExplanations.length + 1));
             allPersonalityExplanations.forEach((personality, index) => {
-                const x = leftPadding + (legendSpacing * (index + 1));
+                const x = leftPadding + (balancePersonalitySpacing * (index + 1));
                 strengthCtx.fillStyle = colors[index];
                 strengthCtx.beginPath();
-                strengthCtx.arc(x - 40, legendY - 20, Math.floor(canvasHeight * 0.01), 0, 2 * Math.PI);
+                strengthCtx.arc(x - 40, balancePersonalityY, Math.floor(balanceCanvasHeight * 0.01), 0, 2 * Math.PI);
                 strengthCtx.fill();
                 strengthCtx.fillStyle = 'black';
-                strengthCtx.fillText(personality.personality, x, legendY - 15);
+                strengthCtx.font = `${legendFontSize}px Arial`;
+                strengthCtx.textAlign = 'left';
+                strengthCtx.fillText(personality.personality, x, balancePersonalityY + 5);
             });
 
             // Convert canvas to buffer
@@ -329,9 +390,9 @@ module.exports = {
 
             // Upload image
             this.logInfo("Uploading image to AssistOS...");
-            let balanceImageId; 
+            let balanceImageId;
             try {
-                balanceImageId = await spaceModule.putImage(buffer); 
+                balanceImageId = await spaceModule.putImage(buffer);
                 this.logInfo("Image uploaded successfully. Image ID:", balanceImageId);
             } catch (uploadError) {
                 this.logError("Failed to upload image:", uploadError.message);
@@ -343,9 +404,9 @@ module.exports = {
             // =============================================
 
             const canvasWidth = 1200;
-            const canvasHeight = 720; 
-            const padding = Math.floor(canvasHeight * 0.1); 
-            const biasNameDistance = Math.floor(canvasHeight * 0.08); 
+            const canvasHeight = 720;
+            const padding = Math.floor(canvasHeight * 0.1);
+            const biasNameDistance = Math.floor(canvasHeight * 0.08);
 
             // Create canvas for Against biases
             const againstCanvas = createCanvas(canvasWidth, canvasHeight);
@@ -356,14 +417,14 @@ module.exports = {
             againstCtx.fillRect(0, 0, canvasWidth, canvasHeight);
 
             // Draw title
-            againstCtx.font = `bold ${Math.floor(canvasHeight * 0.03)}px Arial`; 
+            againstCtx.font = `bold ${Math.floor(canvasHeight * 0.03)}px Arial`;
             againstCtx.textAlign = 'center';
             againstCtx.fillStyle = 'black';
             againstCtx.fillText('Against Biases Multi-Personality Bias Intensity Analysis', canvasWidth/2, Math.floor(canvasHeight * 0.09)); // Move down 1% (from 0.08 to 0.09)
 
             // Calculate dimensions for the chart area
             const chartWidth = canvasWidth - (padding * 2);
-            const chartHeight = canvasHeight - (padding * 3); 
+            const chartHeight = canvasHeight - (padding * 3);
             const barWidth = Math.floor(chartWidth / (biasTypes.length * 2));
 
             // Draw grid lines
@@ -372,11 +433,11 @@ module.exports = {
             for(let i = 0; i <= 10; i++) {
                 const y = padding + chartHeight - (i * chartHeight/10);
                 againstCtx.beginPath();
-                againstCtx.setLineDash([5, 5]); 
+                againstCtx.setLineDash([5, 5]);
                 againstCtx.moveTo(padding, y);
                 againstCtx.lineTo(canvasWidth - padding, y);
                 againstCtx.stroke();
-                againstCtx.setLineDash([]); 
+                againstCtx.setLineDash([]);
 
                 // Add Y-axis labels
                 againstCtx.font = `${Math.floor(canvasHeight * 0.03)}px Arial`;
@@ -389,11 +450,11 @@ module.exports = {
             biasTypes.forEach((_, typeIndex) => {
                 const x = padding + (typeIndex * barWidth * 2) + barWidth/2;
                 againstCtx.beginPath();
-                againstCtx.setLineDash([5, 5]); 
+                againstCtx.setLineDash([5, 5]);
                 againstCtx.moveTo(x, padding);
                 againstCtx.lineTo(x, padding + chartHeight);
                 againstCtx.stroke();
-                againstCtx.setLineDash([]); 
+                againstCtx.setLineDash([]);
             });
 
             // Function to split bias name into lines of max 2 words
@@ -417,7 +478,7 @@ module.exports = {
                 // Calculate center position based on number of personalities
                 const numPersonalities = allPersonalityExplanations.length;
                 let centerOffset;
-                
+
                 if (numPersonalities === 1) {
                     // For one personality, stay at start of bar
                     centerOffset = 0;
@@ -434,9 +495,9 @@ module.exports = {
                 againstCtx.translate(x - barWidth/4 + centerOffset, padding + chartHeight + biasNameDistance);
                 againstCtx.rotate(-Math.PI/4);
                 againstCtx.font = `${Math.floor(canvasHeight * 0.01875)}px Arial`;
-                againstCtx.textAlign = 'center'; 
+                againstCtx.textAlign = 'center';
                 againstCtx.fillStyle = 'black';
-                
+
                 // Split and draw bias name in lines
                 const lines = splitBiasName(biasType);
                 const lineHeight = Math.floor(canvasHeight * 0.02);
@@ -444,7 +505,7 @@ module.exports = {
                 const totalHeight = lineHeight * (lines.length - 1);
                 // Move starting position up by half the total height to center the text block
                 const startY = -totalHeight / 2;
-                
+
                 lines.forEach((line, index) => {
                     againstCtx.fillText(line, 0, startY + (index * lineHeight));
                 });
@@ -456,10 +517,10 @@ module.exports = {
                     if (bias) {
                         const score = bias.against_score;
                         // If score is 0, show a tiny bar (1% height)
-                        const barHeight = score === 0 ? 
-                            Math.floor(chartHeight * 0.01) : 
+                        const barHeight = score === 0 ?
+                            Math.floor(chartHeight * 0.01) :
                             (score/10) * chartHeight;
-                        
+
                         againstCtx.fillStyle = colors[pIndex];
                         againstCtx.fillRect(
                             x + (pIndex * barWidth/allPersonalityExplanations.length) - barWidth/4,
@@ -472,7 +533,7 @@ module.exports = {
             });
 
             // Add legend closer to the top
-            const legendY = Math.floor(canvasHeight * 0.03); 
+            const legendY = Math.floor(canvasHeight * 0.03);
             const legendSpacing = Math.floor(canvasWidth / (allPersonalityExplanations.length + 1));
             allPersonalityExplanations.forEach((personality, index) => {
                 const x = legendSpacing * (index + 1);
@@ -495,14 +556,14 @@ module.exports = {
             forCtx.fillRect(0, 0, canvasWidth, canvasHeight);
 
             // Draw title
-            forCtx.font = `bold ${Math.floor(canvasHeight * 0.03)}px Arial`; 
+            forCtx.font = `bold ${Math.floor(canvasHeight * 0.03)}px Arial`;
             forCtx.textAlign = 'center';
             forCtx.fillStyle = 'black';
             forCtx.fillText('For Biases Multi-Personality Bias Intensity Analysis', canvasWidth/2, Math.floor(canvasHeight * 0.09)); 
 
             // Calculate dimensions for the chart area
             const chartWidthFor = canvasWidth - (padding * 2);
-            const chartHeightFor = canvasHeight - (padding * 3); 
+            const chartHeightFor = canvasHeight - (padding * 3);
             const barWidthFor = Math.floor(chartWidthFor / (biasTypes.length * 2));
 
             // Draw grid lines
@@ -511,11 +572,11 @@ module.exports = {
             for(let i = 0; i <= 10; i++) {
                 const y = padding + chartHeightFor - (i * chartHeightFor/10);
                 forCtx.beginPath();
-                forCtx.setLineDash([5, 5]); 
+                forCtx.setLineDash([5, 5]);
                 forCtx.moveTo(padding, y);
                 forCtx.lineTo(canvasWidth - padding, y);
                 forCtx.stroke();
-                forCtx.setLineDash([]); 
+                forCtx.setLineDash([]);
 
                 // Add Y-axis labels
                 forCtx.font = `${Math.floor(canvasHeight * 0.03)}px Arial`;
@@ -528,11 +589,11 @@ module.exports = {
             biasTypes.forEach((_, typeIndex) => {
                 const x = padding + (typeIndex * barWidthFor * 2) + barWidthFor/2;
                 forCtx.beginPath();
-                forCtx.setLineDash([5, 5]); 
+                forCtx.setLineDash([5, 5]);
                 forCtx.moveTo(x, padding);
                 forCtx.lineTo(x, padding + chartHeightFor);
                 forCtx.stroke();
-                forCtx.setLineDash([]); 
+                forCtx.setLineDash([]);
             });
 
             // Draw bars for each bias type and personality
@@ -542,7 +603,7 @@ module.exports = {
                 // Calculate center position based on the number of personalities
                 const numPersonalities = allPersonalityExplanations.length;
                 let centerOffset;
-                
+
                 if (numPersonalities === 1) {
                     // For one personality, stay at start of bar
                     centerOffset = 0;
@@ -559,9 +620,9 @@ module.exports = {
                 forCtx.translate(x - barWidthFor/4 + centerOffset, padding + chartHeightFor + biasNameDistance);
                 forCtx.rotate(-Math.PI/4);
                 forCtx.font = `${Math.floor(canvasHeight * 0.01875)}px Arial`;
-                forCtx.textAlign = 'center'; 
+                forCtx.textAlign = 'center';
                 forCtx.fillStyle = 'black';
-                
+
                 // Split and draw bias name in lines
                 const lines = splitBiasName(biasType);
                 const lineHeight = Math.floor(canvasHeight * 0.02);
@@ -569,7 +630,7 @@ module.exports = {
                 const totalHeight = lineHeight * (lines.length - 1);
                 // Move starting position up by half the total height to center the text block
                 const startY = -totalHeight / 2;
-                
+
                 lines.forEach((line, index) => {
                     forCtx.fillText(line, 0, startY + (index * lineHeight));
                 });
@@ -581,10 +642,10 @@ module.exports = {
                     if (bias) {
                         const score = bias.for_score;
                         // If score is 0, show a tiny bar (1% height)
-                        const barHeight = score === 0 ? 
-                            Math.floor(chartHeightFor * 0.01) : 
+                        const barHeight = score === 0 ?
+                            Math.floor(chartHeightFor * 0.01) :
                             (score/10) * chartHeightFor;
-                        
+
                         forCtx.fillStyle = colors[pIndex];
                         forCtx.fillRect(
                             x + (pIndex * barWidthFor/allPersonalityExplanations.length) - barWidthFor/4,
@@ -597,7 +658,7 @@ module.exports = {
             });
 
             // Add legend closer to the top
-            const legendYFor = Math.floor(canvasHeight * 0.03); 
+            const legendYFor = Math.floor(canvasHeight * 0.03);
             const legendSpacingFor = Math.floor(canvasWidth / (allPersonalityExplanations.length + 1));
             allPersonalityExplanations.forEach((personality, index) => {
                 const x = legendSpacingFor * (index + 1);
@@ -731,4 +792,4 @@ module.exports = {
             parameters: this.parameters
         };
     }
-}; 
+};
