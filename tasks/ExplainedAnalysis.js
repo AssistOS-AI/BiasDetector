@@ -221,135 +221,107 @@ module.exports = {
             // Create visualization data
             this.logProgress("Creating visualization data...");
 
-            const width = 9000;
-            const height = 3600;
-            const balancePadding = 450;
+            const canvasWidth = 3600;
+            const canvasHeight = 3600;
 
-            // Calculate angles for bias lines
-            const biasTypes = [...new Set(allPersonalityExplanations[0].scored_biases.map(b => b.bias_type))];
+            // Calculate percentage-based measurements
+            const topPadding = Math.floor(canvasHeight * 0.02); // 2% from top
+            const bottomPadding = Math.floor(canvasHeight * 0.03); // 3% from bottom for legend
+            const leftPadding = Math.floor(canvasWidth * 0.02); // 2% from left
+            const rightPadding = Math.floor(canvasWidth * 0.02); // 2% from right
 
-            // Load canvas using require
-            const { createCanvas } = require('canvas');
-
-            const strengthCanvas = createCanvas(width, height);
+            // Create canvas
+            const strengthCanvas = createCanvas(canvasWidth, canvasHeight);
             const strengthCtx = strengthCanvas.getContext('2d');
 
             // Set white background
             strengthCtx.fillStyle = 'white';
-            strengthCtx.fillRect(0, 0, width, height);
+            strengthCtx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-            // Calculate the center line position
-            const centerLineX = width/2;
-            const scaleUnit = (width/2 - balancePadding) / MAX_SCORE;
-
-            // Draw title for strength comparison
-            strengthCtx.font = 'bold 81px Arial';
+            // Draw title at 2% from top
+            strengthCtx.font = `bold ${Math.floor(canvasHeight * 0.03)}px Arial`;
             strengthCtx.textAlign = 'center';
             strengthCtx.fillStyle = 'black';
-            strengthCtx.fillText('Bias Balance Comparison', width/2, 160);
+            strengthCtx.fillText('Bias Balance Comparison', canvasWidth/2, topPadding + Math.floor(canvasHeight * 0.02));
 
-            // Calculate bias strengths for each personality
-            const biasStrengths = allPersonalityExplanations.map(personality => ({
-                name: personality.personality,
-                biases: personality.scored_biases.map(bias => ({
-                    type: bias.bias_type,
-                    strength: Math.abs(bias.for_score - bias.against_score),
-                    for_score: bias.for_score,
-                    against_score: bias.against_score
-                }))
-            }));
+            // Calculate frame dimensions
+            const frameArea = canvasHeight - topPadding - bottomPadding;
+            const frameHeight = Math.floor(frameArea / biasTypes.length);
+            const frameWidth = canvasWidth - leftPadding - rightPadding;
 
-            // Log biasTypes to verify all bias types are included
-            this.logInfo("Bias types for visualization:", biasTypes);
+            // Calculate center line position (0 axis)
+            const centerX = canvasWidth / 2;
 
-            const balanceBarHeight = 90; 
-            const biasSpacing = 120; 
-            const groupHeight = balanceBarHeight + 120; 
-            const maxBarWidth = width - (balancePadding * 2);
-            const startY = (height / 2) - ((biasTypes.length * (groupHeight + biasSpacing)) / 2);
+            // Draw frames and bias information
+            biasTypes.forEach((biasType, index) => {
+                const frameY = topPadding + (index * frameHeight);
 
-            // Draw strength bars for each bias type
-            biasTypes.forEach((biasType, typeIndex) => {
-                const y = startY + (typeIndex * (groupHeight + biasSpacing));
+                // Draw alternating background
+                strengthCtx.fillStyle = index % 2 === 0 ? '#f0f0f0' : '#ffffff';
+                strengthCtx.fillRect(leftPadding, frameY, frameWidth, frameHeight);
 
-                // Draw background rectangle for this bias group with spacing
-                strengthCtx.fillStyle = typeIndex % 2 === 0 ? '#f0f0f0' : '#d8d8d8';
-                strengthCtx.fillRect(0, y, width, groupHeight); 
-
-                // Legend text
-                strengthCtx.font = 'bold 108px Arial'; 
-                strengthCtx.textAlign = 'right';
+                // Draw bias name (2% from left, vertically centered in frame)
                 strengthCtx.fillStyle = 'black';
-                strengthCtx.fillText(biasType, 
-                    centerLineX - (maxBarWidth/2) + 1800, 
-                    y + (groupHeight/2) + 35); 
+                strengthCtx.textAlign = 'left';
+                strengthCtx.font = `${Math.floor(canvasHeight * 0.02)}px Arial`;
+                const textY = frameY + (frameHeight / 2);
+                strengthCtx.fillText(biasType, leftPadding, textY);
 
-                // Draw bars for each personality
-                biasStrengths.forEach((personality, pIndex) => {
-                    const bias = personality.biases.find(b => b.type === biasType);
+                // Calculate bar dimensions
+                const maxBarWidth = (frameWidth - leftPadding) / 2; // Half of remaining width for each side
+                const barHeight = Math.floor(frameHeight * 0.4); // 40% of frame height
+
+                // Calculate bar positions for multiple personalities
+                allPersonalityExplanations.forEach((personality, pIndex) => {
+                    const bias = personality.scored_biases.find(b => b.bias_type === biasType);
                     if (bias) {
-                        const yOffset = pIndex * (balanceBarHeight + 20);
+                        // Calculate vertical position to center bars
+                        const totalBarSpace = barHeight * allPersonalityExplanations.length;
+                        const startY = frameY + (frameHeight - totalBarSpace) / 2;
+                        const barY = startY + (pIndex * barHeight);
 
-                        // Calculate bar dimensions for against and for scores
-                        const againstWidth = bias.against_score * scaleUnit * 0.5;
-                        const forWidth = bias.for_score * scaleUnit * 0.5;
-
+                        // Draw against score (left side)
+                        const againstWidth = (bias.against_score / 10) * maxBarWidth;
                         strengthCtx.fillStyle = colors[pIndex];
-                        // Draw against score bar (left side)
-                        strengthCtx.fillRect(centerLineX - againstWidth, y + yOffset + 20, againstWidth, balanceBarHeight/2);
-                        // Draw for score bar (right side)
-                        strengthCtx.fillRect(centerLineX, y + yOffset + 20, forWidth, balanceBarHeight/2);
+                        strengthCtx.fillRect(centerX - againstWidth, barY, againstWidth, barHeight);
 
-                        // Add scores on both sides
+                        // Draw for score (right side)
+                        const forWidth = (bias.for_score / 10) * maxBarWidth;
+                        strengthCtx.fillRect(centerX, barY, forWidth, barHeight);
+
+                        // Draw score values
                         strengthCtx.fillStyle = 'black';
-
-                        // Against score on the left side
                         strengthCtx.textAlign = 'right';
-                        strengthCtx.font = 'bold 90px Arial'; 
-                        strengthCtx.fillText(`-${bias.against_score}`,
-                            centerLineX - againstWidth - 15, 
-                            y + yOffset + (balanceBarHeight/2) + 35);
-
-                        // For score on the right side
+                        strengthCtx.fillText(-bias.against_score, centerX - againstWidth - 5, barY + barHeight/2);
                         strengthCtx.textAlign = 'left';
-                        strengthCtx.fillText(`${bias.for_score}`,
-                            centerLineX + forWidth + 15, 
-                            y + yOffset + (balanceBarHeight/2) + 35);
+                        strengthCtx.fillText(bias.for_score, centerX + forWidth + 5, barY + barHeight/2);
                     }
                 });
             });
 
-            // Draw vertical center line
+            // Draw center line
             strengthCtx.beginPath();
-            strengthCtx.strokeStyle = '#000000'; 
-            strengthCtx.lineWidth = 8; 
-            strengthCtx.moveTo(centerLineX, startY - 50);  
-            strengthCtx.lineTo(centerLineX, startY + (biasTypes.length - 1) * (groupHeight + biasSpacing) + groupHeight + 100);
+            strengthCtx.strokeStyle = 'black';
+            strengthCtx.moveTo(centerX, topPadding);
+            strengthCtx.lineTo(centerX, canvasHeight - bottomPadding);
             strengthCtx.stroke();
 
-            // Add legend at the bottom with clear separation
-            const strengthLegendStartY = height - balancePadding + (height * 0.10); 
-            strengthCtx.font = 'bold 108px Arial'; 
-            strengthCtx.textAlign = 'left';
+            // Draw legend at bottom (3% from bottom)
+            const legendY = canvasHeight - bottomPadding;
             strengthCtx.fillStyle = 'black';
-            strengthCtx.fillText('Legend:', balancePadding, strengthLegendStartY);
+            strengthCtx.textAlign = 'left';
+            strengthCtx.fillText('Legend: Values shown as: Balance (Against score, For score)', leftPadding, legendY);
 
-            // Legend explanation
-            strengthCtx.font = 'bold 90px Arial';
-            const legendTextX = balancePadding + 450; 
-            strengthCtx.fillText('Values shown as: Balance (Against score, For score)', legendTextX, strengthLegendStartY);
-
-            // Add personality colors next to the legend explanation
-            biasStrengths.forEach((personality, index) => {
-                const x = legendTextX + 2400 + (index * 800); 
+            // Draw personality colors in legend
+            const legendSpacing = Math.floor(frameWidth / (allPersonalityExplanations.length + 1));
+            allPersonalityExplanations.forEach((personality, index) => {
+                const x = leftPadding + (legendSpacing * (index + 1));
                 strengthCtx.fillStyle = colors[index];
                 strengthCtx.beginPath();
-                strengthCtx.arc(x, strengthLegendStartY - 20, 30, 0, 2 * Math.PI);
+                strengthCtx.arc(x - 40, legendY - 20, Math.floor(canvasHeight * 0.01), 0, 2 * Math.PI);
                 strengthCtx.fill();
                 strengthCtx.fillStyle = 'black';
-                strengthCtx.textAlign = 'left';
-                strengthCtx.font = 'bold 90px Arial';
-                strengthCtx.fillText(personality.name, x + 50, strengthLegendStartY);
+                strengthCtx.fillText(personality.personality, x, legendY - 15);
             });
 
             // Convert canvas to buffer
@@ -444,12 +416,22 @@ module.exports = {
 
                 // Calculate center position based on number of personalities
                 const numPersonalities = allPersonalityExplanations.length;
-                const totalBarsWidth = barWidth/2;
-                const centerOffset = totalBarsWidth/2;
+                let centerOffset;
+                
+                if (numPersonalities === 1) {
+                    // For one personality, stay at start of bar
+                    centerOffset = 0;
+                } else {
+                    // For multiple personalities, calculate the total width of all bars
+                    const singleBarWidth = barWidth/numPersonalities;
+                    const totalBarsWidth = singleBarWidth * numPersonalities;
+                    // Center between first and last bar
+                    centerOffset = (totalBarsWidth - singleBarWidth) / 2;
+                }
 
                 // Draw bias name at bottom, centered based on number of personalities
                 againstCtx.save();
-                againstCtx.translate(x + centerOffset, padding + chartHeight + biasNameDistance);
+                againstCtx.translate(x - barWidth/4 + centerOffset, padding + chartHeight + biasNameDistance);
                 againstCtx.rotate(-Math.PI/4);
                 againstCtx.font = `${Math.floor(canvasHeight * 0.01875)}px Arial`;
                 againstCtx.textAlign = 'center'; 
@@ -557,14 +539,24 @@ module.exports = {
             biasTypes.forEach((biasType, typeIndex) => {
                 const x = padding + (typeIndex * barWidthFor * 2) + barWidthFor/2;
 
-                // Calculate center position based on number of personalities
+                // Calculate center position based on the number of personalities
                 const numPersonalities = allPersonalityExplanations.length;
-                const totalBarsWidth = barWidthFor/2;
-                const centerOffset = totalBarsWidth/2;
+                let centerOffset;
+                
+                if (numPersonalities === 1) {
+                    // For one personality, stay at start of bar
+                    centerOffset = 0;
+                } else {
+                    // For multiple personalities, calculate the total width of all bars
+                    const singleBarWidth = barWidthFor/numPersonalities;
+                    const totalBarsWidth = singleBarWidth * numPersonalities;
+                    // Center between first and last bar
+                    centerOffset = (totalBarsWidth - singleBarWidth) / 2;
+                }
 
                 // Draw bias name at bottom, centered based on number of personalities
                 forCtx.save();
-                forCtx.translate(x + centerOffset, padding + chartHeightFor + biasNameDistance);
+                forCtx.translate(x - barWidthFor/4 + centerOffset, padding + chartHeightFor + biasNameDistance);
                 forCtx.rotate(-Math.PI/4);
                 forCtx.font = `${Math.floor(canvasHeight * 0.01875)}px Arial`;
                 forCtx.textAlign = 'center'; 
